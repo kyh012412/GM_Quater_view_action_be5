@@ -160,3 +160,133 @@ public class Follow : MonoBehaviour
     }
 }
 ```
+
+### 3D 쿼터뷰 액션게임 - 플레이어 점프와 회피 [B39]
+
+#### 코드정리
+
+1. `bool isJump;`변수를 사용하여 무한 점프를 방지
+2. 착지시 재활용할수 있게 값 수정
+3. 애니메이터 추가
+4. any state에서 나가는것들은 trigger 사용 (doJump, doDodge)
+   1. 착지를 잘 제어하기위해 isJump(bool)파라미터도 추가
+5. any state -> dodge
+   1. 나가는시간 체크해제
+   2. transition duration 0
+   3. 컨디션 doDodge
+6. dodge -> exit
+   1. 나가는 시간 체크
+   2. transition duration 0.1
+7. any state -> jump
+   1. 나가는시간 체크해제
+   2. transition duration 0
+   3. 컨디션 doJump
+8. jump -> land
+   1. 나가는시간 체크해제
+   2. transition duration 0
+   3. 컨디션 isJump false일때
+9. land -> exit
+   1. 나가는 시간체크
+   2. transition duration 0.1
+10. 테스트
+11. edit >project settings > physics 에서 중력설정
+
+#### 지형 물리 편집
+
+1. WorldSpace 객체에서 Inspector 창에서 static을 체크
+   1. 자식들도 같이 바꿀지 물어보면 yes
+2. _static으로 돌리는 이유_
+   1. Player > rigidbody에서 > collision detection의 값을 continuous로 했는데(벽뚫을 더 잘 막기위하여)
+   2. continous를 효과적으로 쓰려면 이 객체와 충돌하는물체가 static이여야함
+3. - 충돌할때 유니티가 빨리 계산하기 위해서는 둘다 rigidbody를 가지고 있는것이 좋음
+4. WorldSpace의 자식객체들에 rigidbody 추가
+   1. use gravity를 끄고
+   2. is kinematic을 켠다.
+      1. 코드상으로 직접움직여주지않으면 움직이지 않는다.
+5. Materials내에 Physics Material추가(Wall)
+   1. Dynamic Friction 0
+   2. Static Friction 0
+   3. Friction Combine 값은 Minimum (마찰력 최소를 위해)
+   4. Wall에 넣어준다.(Box Collider 내의 Material에서 확인가능)
+
+#### 회피 구현
+
+1. Dodge 메서드 구현(Jump copy후 개조)
+2. bool 변수 isDodge추가
+3. dodge 애니메이션 스피드 3
+4. 테스트
+   player.cs
+
+```cs
+bool jDown; // jumpDown의 약자
+bool isJump; // 무한 점프를 막기위한 변수
+bool isDodge; //
+
+Vector3 dodgeVec;
+Rigidbody rigid;
+
+void Update()
+{
+	GetInput();
+	Move();
+	Turn();
+	Jump();
+	Dodge();
+}
+
+void GetInput(){
+	hAxis = Input.GetAxisRaw("Horizontal");
+	vAxis = Input.GetAxisRaw("Vertical");
+	wDown = Input.GetButton("Walk");
+	jDown = Input.GetButtonDown("Jump");
+}
+
+void Move(){
+	moveVec = new Vector3(hAxis,0,vAxis).normalized;
+	if(isDodge){
+		moveVec = dodgeVec;
+	}
+	transform.position += moveVec * speed * (wDown ? 0.3f : 1f) * Time.deltaTime;
+	anim.SetBool("isRun", moveVec != Vector3.zero);
+	anim.SetBool("isWalk", wDown);
+}
+
+void Turn(){
+	transform.LookAt(transform.position + moveVec);
+}
+
+void Jump(){
+	if(jDown && !isJump && moveVec == Vector3.zero && !isDodge){
+		rigid.AddForce(Vector3.up * 9.81f,ForceMode.Impulse);
+		isJump = true;
+		anim.SetBool("isJump", isJump);
+		anim.SetTrigger("doJump");
+	}
+}
+
+void Dodge(){
+	if(jDown && !isJump && moveVec != Vector3.zero && !isDodge){
+		dodgeVec = moveVec;
+		speed *=2;
+		anim.SetTrigger("doDodge");
+		isDodge = true;
+
+		Invoke("DodgeOut", 0.5f);
+	}
+}
+
+void DodgeOut(){
+	speed *= 0.5f;
+	isDodge=false;
+}
+
+void OnCollisionEnter(Collision other)
+{
+	if(other.gameObject.CompareTag("Floor")){
+		isJump=false;
+		anim.SetBool("isJump", isJump);
+	}
+}
+```
+
+###

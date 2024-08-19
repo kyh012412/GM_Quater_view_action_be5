@@ -289,4 +289,129 @@ void OnCollisionEnter(Collision other)
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 아이템 만들기 [B40]
+
+#### 아이템 준비
+
+1. 받은 에셋의 prefab에서 Weapon Hammer를 하이라키에 드래그드랍
+2. 그 내부의 Mesh Object의 값을 조절
+   1. position y 1.5
+   2. rotation z 30
+
+#### 라이트 이펙트
+
+1. Weapon Hammer 내에 빈객체 추가(Light)
+   1. Light 컴포넌트 추가
+2. Light
+   1. 의 pos y 0.9
+   2. type 속성이 있는데. 기본적인 (Point) 사용
+   3. intensity 빛의 세기 10
+   4. Range 빔의 범위 4
+   5. 빛의 색 ff7100
+   6. shadow 값은 별개로 주지 않음
+
+#### 파티클 이펙트
+
+1. 빈객체추가 (Particle)
+   1. Particle System 이라는 컴포넌트 추가
+   2. 분홍색(Magenta)이 피어오르는데 이유는
+      1. 재질을 못 찾을때 이렇게 보이게 된다.
+   3. 맨끝쯤에 Render에 Material이 있음
+      1. Default-Line 선택해서 연결
+   4. Emission : 파티클 입자 출력양 (초당 출력양?) 15로 설정
+   5. shape : 발사하는 각도의 모양
+      1. cone 외에도 구체 반구체 모양등 다양한 모양이 있음
+      2. cone에 발사각을 rotation x의 값을 위로 쏘기위해 -90으로해준다.
+   6. color over lifetime : 시간에 따른 색상변화
+      1. gradient editor를 열고
+      2. 좌하단앵커 클릭후 컬러값을 설정
+      3. 56.2% 지점에 앵커를 추가해주고 컬러를 fff500으로 해준다.
+      4. 상단의 앵커는 알파값을제어
+      5. 우상단의앵커의 알파값은 0으로 해준다.
+   7. size over lifetime : 시간에 따른 크기변화
+      1. 커브그래프를 조정해준다.
+      2. 시계 열그래프로 왼쪽이 초기 우측이 후기이다.
+   8. limit velocity over lifetime : 시간에 따른 속도제한
+      1. drag : 저항 값을 1로 해준다.
+   9. 이쁘게 잘 만들기 위해서는 Start LifeTime과 Start Speed값을 잘 조정해야함
+   10. Start Lifelife타임 우측에 화살표를 누르면 Random between two constants를 선택할수있다.
+       1. 2~4사용
+
+#### 로직 구현
+
+1. Weapon Hammer 내에 RigidBody 추가
+2. Sphere Collider(첫번째) 추가
+   1. center y 1
+3. Sphere Collider(두번째) 추가
+   1. radius 5
+   2. is trigger 체크
+4. Item.cs
+   1. enum : 열거형 타입 (타입 이름 지정 필요)
+5. Hammer 내에 item.cs 추가
+   1. type weapon value 0
+6. Weapon HandGun 모델을 하이라키에 드랍
+7. HandGun > Mesh Object
+   1. pos y 1.5
+   2. rotation z 25
+   3. scale 1.3
+   4. Light 객체추가
+8. Hand Gun > Light
+   1. pos y 0.8
+   2. 컬러 98d200
+   3. range 4
+   4. intensity 10
+9. Hand Gun > particle
+   1. renderer > material
+      1. default-line
+   2. shape Rotation x -90
+   3. emission 7
+   4. color over lifetime 좌측하단앵커 c7f61d
+      1. 63.5% 하단앵커 ffe91a
+      2. 우상단앵커 알파 0
+   5. size over lifetime 시작1 끝0
+   6. limit velocity over lifetime
+      1. drag 0.7
+   7. start lifetime 2-4
+   8. start speed 3-5
+10. HandGun 내에 컴포넌트 추가 rigidbody
+11. HandGun 내에 컴포넌트 추가 sphere collider 1
+    1. center y 1
+12. HandGun 내에 컴포넌트 추가 sphere collider 2
+    1. radius 5
+    2. is trigger 체크
+13. HandGun 내에 item.cs 추가
+    1. type weapon value 1
+14. _똑같이 만들기 참조_
+    1. object 기울이기 높이 높여주기
+    2. light 컴포넌트 복사후 생상변경
+    3. particle 컴포넌트 복사후 색상변경
+    4. 부모객체 sphere 컴포넌트 복사
+    5. item은 particle radius만드라드게해주기
+15. _// weapon들 똑같이 만들기_ 2. submachinegun 3. granade 4. Item Heart 5. item ammo 6. coin gold 7. coin silver 8. coin bronze
+16. (아이템 회전 효과 주기)
+
+#### 프리펩 저장
+
+1. tag생성 (Item, Weapon)
+2. weapon에는 weapon(3개)
+3. 나머지는 Item tag를 넣어준다. (grenade도 아이템태그)
+4. 각자 Item.cs가 있는데 올바른 type과 value를 지정해준다.
+5. Assets/Prefabs 폴더를 만들어 준다.
+6. Prefab화 하면서 original prefab을 눌러준다. 1. Prefab화 후 position을 0 0 0 으로 초기화
+   item.cs
+
+```cs
+public class Item : MonoBehaviour
+{
+    public enum Type { Ammo, Coin, Grenade, Heart, Weapon};
+    public Type type;
+    public int value;
+
+    void Update()
+    {
+        transform.Rotate(Vector3.up * 20 * Time.deltaTime);
+    }
+}
+```
+
 ###

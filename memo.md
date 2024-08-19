@@ -667,4 +667,164 @@ public class Orbit : MonoBehaviour
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 코루틴으로 근접공격 구현하기 [B43]
+
+#### 변수 생성
+
+1. Weapon.cs (이 스크립트는 player 내부에 넣은 3개의 아이템에 넣어줘야함)
+2. inspector로와서
+3. Hammer
+   1. melee 25 0.4
+   2. box collider 추가
+      1. center y 2.5
+      2. size 3.5 3 2
+      3. is trigger 체크
+   3. 추가후 본인을 등록
+   4. 태그 melee
+
+#### 근접 공격 효과
+
+1. Weapon point > Weapon Hammer 내에 객체 추가(Effect)
+2. 내에 _Trail renderer_ 라는 컴포넌트 추가
+   1. 잔상을 그려주는 컴포넌트
+   2. magenta색(분홍색) 이 나오므로 material을 추가해준다.
+      1. default line
+   3. 그래프에서 우클릭 add key
+      1. 우측 아래로 드래그
+   4. Time 0.5
+   5. Min Vertex Distance 0.1인데 이값을 1.5까지 키우면 각진 모양이 된다.
+   6. color
+      1. 좌하단 앵커값 ff9700
+      2. 중간 하단 (61.8)앵커값 fff100
+      3. 우상단 알파값 0
+   7. Effect 객체의 y값 증가 2.2
+3. Weapon Hammer에 이하의 Effect 객체등록
+4. Effect 내의
+   1. Trail renderer 컴포넌트 disabled
+5. Weapon Hammer의 box collider disabled
+
+#### 공격 로직 (코루틴)
+
+1. 기본의 방식
+   1. use() 메인 루틴 -> Swing() 서브 루틴 -> use() 메인 루틴 -> Swing() 서브 루틴
+2. 코루틴 방식
+   1. use() 메인루틴 + Swing() 코루틴이라고 부름(Co-op)
+3. _코루틴_ 함수 : 메인루틴 + 코루틴 (동시실행)
+4. *yield 결과*를 전달하는 키워드
+5. 예
+   ```cs
+   IEnumerator Swing(){
+   	// 1번 구역 실행
+   	yield return null; // 1번구역 실행 후 1프레임 대기
+   	// 2번 구역 실행
+   }
+   ```
+6. yield 키워드를 여러 개 사용하여 시간차 로직 작성 가능
+7. 1프레임이 아닌 다른 시간도 대기 가능하다.
+8. `yield break;`로 코루틴문 탈출 가능
+9. 시작하는 방법은 StartCoroutine을 사용한다.
+10. 외부에서 중단할때는 StopCoroutine을 사용한다.
+11. 코루틴을 호출하기전에 로직이 꼬이지 않게 미리 코루틴을 종료후 시작할수있다.
+
+#### 공격 실행
+
+1. equipWeapon의 자료형을 Weapon으로 변경
+2. player animator에 prameter 추가
+3. transition 추가
+   Weapon.cs
+
+```cs
+public class Weapon : MonoBehaviour
+{
+    public enum Type { Melee, Range };
+    public Type type;
+    public int damage;
+    public float rate;
+    public BoxCollider meleeArea; // 근접 공격의 범위
+    public TrailRenderer trailEffect; // 휘두룰 때 효과
+
+    public void Use(){
+        if(type == Type.Melee){
+            StopCoroutine(Swing());
+            StartCoroutine(Swing());
+        }
+    }
+
+    IEnumerator Swing(){
+        yield return new WaitForSeconds(0.1f); // 0.1초 대기
+        meleeArea.enabled = true;
+        trailEffect.enabled = true;
+        yield return new WaitForSeconds(0.3f);
+        meleeArea.enabled = false;
+        yield return new WaitForSeconds(0.3f);
+        trailEffect.enabled = false;
+    }
+}
+```
+
+Player.cs
+
+```cs
+bool fDown; // FireDown의 약자
+bool isFireReady = true; // 재장전완료 (공격 가능한 상태)
+Weapon equipWeapon;
+float fireDelay;
+
+void Update()
+{
+	//...
+	Attack();
+}
+
+void GetInput(){
+	//...
+	fDown = Input.GetButtonDown("Fire1"); // 기본적인 마우스 좌클릭
+}
+
+//move 와 fire을 동시에 못하게 수정
+void Move(){
+	moveVec = new Vector3(hAxis,0,vAxis).normalized;
+
+	if(isDodge) moveVec = dodgeVec;
+
+	if(isSwap || !isFireReady) moveVec = Vector3.zero;
+
+	transform.position += moveVec * speed * (wDown ? 0.3f : 1f) * Time.deltaTime;
+
+	anim.SetBool("isRun", moveVec != Vector3.zero);
+	anim.SetBool("isWalk", wDown);
+}
+void Attack(){
+	if(equipWeapon == null){
+		return;
+	}
+
+	fireDelay += Time.deltaTime;
+	isFireReady = equipWeapon.rate < fireDelay;
+
+	if(fDown && isFireReady && !isDodge && !isSwap){
+		equipWeapon.Use();
+		anim.SetTrigger("doSwing");
+		fireDelay = 0;
+	}
+}
+
+void Swap(){
+	//...
+	if((sDown1 || sDown2 || sDown3) && !isJump && !isDodge && !isSwap){
+		if(equipWeapon != null)
+			equipWeapon.gameObject.SetActive(false);
+		equipWeapon = weapons[weaponIndex].GetComponent<Weapon>();
+		equipWeaponIndex = weaponIndex;
+		equipWeapon.gameObject.SetActive(true);
+
+		anim.SetTrigger("doSwap");
+
+		isSwap = true;
+
+		Invoke("SwapOut",0.4f);
+	}
+}
+```
+
 ###

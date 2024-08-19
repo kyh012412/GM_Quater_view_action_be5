@@ -8,6 +8,7 @@ public class Player : MonoBehaviour
     public bool[] hasWeapons;
     public GameObject[] grenades;
     public int hasGrenades;
+    public Camera followCamera;
 
     public int ammo;
     public int coin;
@@ -25,6 +26,7 @@ public class Player : MonoBehaviour
     bool wDown; // walkDown의 약자
     bool jDown; // jumpDown의 약자
     bool fDown; // FireDown의 약자
+    bool rDown; // ReloadDown의 약자
     bool iDown; // interaction
     bool sDown1; // swapDown
     bool sDown2; // swapDown
@@ -33,7 +35,8 @@ public class Player : MonoBehaviour
     bool isJump; // 무한 점프를 막기위한 변수
     bool isDodge; // 회피 중인지
     bool isSwap; // 스왑중인지
-    bool isFireReady = true; // 재장전완료 (공격 가능한 상태)
+    bool isReload; // 재장전중인지
+    bool isFireReady = true; // (공격 가능한 상태)
     
     Vector3 moveVec;
     Vector3 dodgeVec;
@@ -59,6 +62,7 @@ public class Player : MonoBehaviour
         Turn();
         Jump();
         Attack();
+        Reload();
         Dodge();
         Swap();
         Interaction();
@@ -70,7 +74,8 @@ public class Player : MonoBehaviour
         vAxis = Input.GetAxisRaw("Vertical");
         wDown = Input.GetButton("Walk");
         jDown = Input.GetButtonDown("Jump");
-        fDown = Input.GetButtonDown("Fire1"); // 기본적인 마우스 좌클릭
+        fDown = Input.GetButton("Fire1"); // 기본적인 마우스 좌클릭
+        rDown = Input.GetButtonDown("Reload"); 
         iDown = Input.GetButtonDown("Interaction");
         sDown1 = Input.GetButtonDown("Swap1");
         sDown2 = Input.GetButtonDown("Swap2");
@@ -82,7 +87,10 @@ public class Player : MonoBehaviour
 
         if(isDodge) moveVec = dodgeVec;
 
-        if(isSwap || !isFireReady) moveVec = Vector3.zero;
+        if(isSwap || isReload || !isFireReady){ 
+            // Debug.Log("zerofy" + isSwap + isFireReady);            
+            moveVec = Vector3.zero; 
+        }
 
         transform.position += moveVec * speed * (wDown ? 0.3f : 1f) * Time.deltaTime;
 
@@ -90,8 +98,20 @@ public class Player : MonoBehaviour
         anim.SetBool("isWalk", wDown);
     }
 
-    void Turn(){        
+    void Turn(){
+        // #1 키보드에 의한 회전
         transform.LookAt(transform.position + moveVec);
+
+        // #2 마우스에 의한 회전
+        if(fDown){
+            Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit rayHit;
+            if(Physics.Raycast(ray, out rayHit, 100)){
+                Vector3 nextVec = rayHit.point - transform.position;
+                nextVec.y=0;
+                transform.LookAt(transform.position + nextVec);
+            }
+        }
     }
 
     void Jump(){
@@ -129,11 +149,33 @@ public class Player : MonoBehaviour
 
         if(fDown && isFireReady && !isDodge && !isSwap){
             equipWeapon.Use();
-            anim.SetTrigger("doSwing");
+            anim.SetTrigger(equipWeapon.type ==Weapon.Type.Melee ? "doSwing" : "doShot");
             fireDelay = 0;
         }
     }
 
+    void Reload(){
+        if(equipWeapon == null) return;
+
+        if(equipWeapon.type == Weapon.Type.Melee) return;
+
+        if(ammo == 0) return;
+
+        if(rDown && !isJump && !isDodge && !isSwap && isFireReady && !isReload){
+            anim.SetTrigger("doReload");
+            isReload=true;
+
+            Invoke("ReloadOut",3f);
+        }
+    }
+
+    void ReloadOut(){
+        // 코드 수정 필요 재장전시 무조건 maxAmmo가 빠지는것에 대한 
+        int reAmmo = ammo <equipWeapon.maxAmmo ? ammo : equipWeapon.maxAmmo;
+        equipWeapon.curAmmo = equipWeapon.maxAmmo;
+        ammo -= reAmmo;
+        isReload=false;
+    }
     
     void Swap(){
         if(sDown1 && (!hasWeapons[0] || equipWeaponIndex == 0)) return;

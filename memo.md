@@ -827,4 +827,178 @@ void Swap(){
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 원거리공격 구현 [B44]
+
+#### 총알, 탄피 만들기
+
+1. 하이라키에 빈객체 추가 (Bullet HandGun)
+   1. Trail Renderer 컴포넌트 추가
+   2. rigidbody 추가
+   3. sphere collider 추가
+      1. radious 0.3
+2. Trail Renderer
+   1. material 넣어주기
+   2. time 0.3
+   3. Min Vertex Distance 0
+   4. width 0.3~0
+   5. color a9de14(10.3) ~ ffc200(61.8) / 우상단 알파 50
+3. Bullet HandGun를 복사(Bullet SubMachineGun)
+   1. trail renderder
+      1. time 0.1
+      2. color 변경
+4. 탄피는 받은에셋 > prefab > Bullet Case가 있음 하이라키에 드랍
+   1. 그 이하의 Mesh Object scale 0.5
+5. Bullet Case에 rigidbody 와 box collider를 넣어준다.
+   1. box collider size 0.45 0.3 0.3
+6. Bullet.cs 생성
+7. Bullet HandGun, Bullet SubMachineGun, Bullet Case 에 Bullet.cs를 넣어준다.
+   1. 20, 7, 0 넣어주고 prefab화
+   2. 그후 위치를 0,0,0으로 초기화
+
+#### 발사 구현
+
+1. Player animator에 shot animation을 추가해준다.
+2. Player 객체 밑에 있는 무기의 Weapon 에가서 inspector에 올바른 타입을 잡아준다.
+3. Weapon.cs 에 변수추가
+4. Player 객체 내에 빈객체를 추가하여준다.(Bullet Pos)
+   1. position 1 2.5 1.75
+5. Weapon Pos > Weapon HandGun > Case Pos라는 객체를만들어준다.
+   1. position 0 0.8 -0.1
+6. SubMachineGun에도 같은 원리로 Case Pos를 만들어준다.
+   1. position 0 0.7 -0.2
+7. 이제 inspector를 통해 bullet.cs의 변수를 넣어 줘야 한다.
+   1. player 밑에 있는 Bullet pos를 연결해주고
+   2. Case Pos는 각각연결해주며
+   3. prefab은 우리 Assets/prefab의 있는것을 사용한다.
+8. 벽에 Wall tag를 넣어준다.
+
+#### 재장전 구현
+
+1. Weapon.cs 변수추가
+2. animator state 연결과 파라미터 추가
+3. reload 제어
+4. player내에 inspector에서 기본 maxAmmo와 curAmmo 조정
+
+#### 마우스 회전
+
+1. player.cs 에 `public Camera followCamera` 변수 추가후 main카메라를 넣어준다.
+2. _Camera.ScreenPointToRay() : 스크린에서 월드로 Ray를 쏘는 함수_
+3. _out : return처럼 반환값을 주어진 변수에 저장하는 키워드_
+4. _RayCast 관련 짧은 예제_
+
+```cs
+	// #2 마우스에 의한 회전
+	if(fDown){
+		Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+		RaycastHit rayHit;
+		if(Physics.Raycast(ray, out rayHit, 100)){
+			Vector3 nextVec = rayHit.point - transform.position;
+			nextVec.y=0;
+			transform.LookAt(transform.position + nextVec);
+		}
+	}
+```
+
+Bullet.cs
+
+```cs
+public class Bullet : MonoBehaviour
+{
+    public int damage;
+
+    void OnCollisionEnter(Collision other)
+    {
+        if(other.gameObject.CompareTag("Floor")){
+            Destroy(gameObject,3);
+        }else if(other.gameObject.CompareTag("Wall")){
+            Destroy(gameObject);
+        }
+    }
+}
+```
+
+Player.cs
+
+```cs
+public Camera followCamera;
+bool rDown; // ReloadDown의 약자
+bool isReload; // 재장전중인지
+
+bool isFireReady = true; // (공격 가능한 상태)
+void Update()
+{
+	//...
+	Reload();
+}
+
+void GetInput(){
+//...
+	fDown = Input.GetButton("Fire1"); // 기본적인 마우스 좌클릭
+	rDown = Input.GetButtonDown("Reload");
+}
+
+void Move(){
+	moveVec = new Vector3(hAxis,0,vAxis).normalized;
+
+	if(isDodge) moveVec = dodgeVec;
+
+	if(isSwap || isReload || !isFireReady){ 
+		moveVec = Vector3.zero;
+	}
+	//...
+}
+
+void Turn(){        // #1 키보드에 의한 회전
+	transform.LookAt(transform.position + moveVec);
+
+	// #2 마우스에 의한 회전
+	if(fDown){
+		Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+		RaycastHit rayHit;
+		if(Physics.Raycast(ray, out rayHit, 100)){
+			Vector3 nextVec = rayHit.point - transform.position;
+			nextVec.y=0;
+			transform.LookAt(transform.position + nextVec);
+		}
+	}
+}
+
+void Attack(){
+	if(equipWeapon == null){
+		return;
+	}
+
+	fireDelay += Time.deltaTime;
+	isFireReady = equipWeapon.rate < fireDelay;
+
+	if(fDown && isFireReady && !isDodge && !isSwap){
+		equipWeapon.Use();
+		anim.SetTrigger(equipWeapon.type ==Weapon.Type.Melee ? "doSwing" : "doShot");
+		fireDelay = 0;
+	}
+}
+
+void Reload(){
+	if(equipWeapon == null) return;
+
+	if(equipWeapon.type == Weapon.Type.Melee) return;
+
+	if(ammo == 0) return;
+
+	if(rDown && !isJump && !isDodge && !isSwap && isFireReady && !isReload){
+		anim.SetTrigger("doReload");
+		isReload=true;
+		Invoke("ReloadOut",3f);
+	}
+}
+
+void ReloadOut(){
+	// 코드 수정 필요 재장전시 무조건 maxAmmo가 빠지는것에 대한
+	int reAmmo = ammo <equipWeapon.maxAmmo ? ammo : equipWeapon.maxAmmo;
+	equipWeapon.curAmmo = equipWeapon.maxAmmo;
+	ammo -= reAmmo;
+	isReload=false;
+}
+```
+
 ###

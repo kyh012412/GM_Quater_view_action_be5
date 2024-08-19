@@ -414,4 +414,154 @@ public class Item : MonoBehaviour
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 드랍 무기 입수와 교체 [B41]
+
+#### 오브젝트 감지
+
+1. nearObject 추가
+2. ontriggerStay와 ontriggerExit 사용
+
+#### 무기 입수
+
+1. Interaction 버튼추가 (e)
+2. player inspector로가서 Has Weapons의 배열크기를 3으로 지정해주기
+
+#### 무기 장착
+
+1. Player > Mesh Object > Bone_Body > Bone_Shoulder_R > Bone_Arm_R > RightHand 이하에 cyclinder 추가(Weapon Point)
+   1. 실린더가 외부에서 보이지않게 위치 조정
+   2. pos -0.13 3.25 -2.45
+   3. scale 4
+   4. 캡슐 콜라이더 제거
+   5. 메쉬렌더 비활성화
+   6. 이하에 받은 에셋 > 프리펩 내에 무기 3개를 넣어주고 확인하기
+      1. 비활성화까지
+2. Player의 weapons 배열에 위 3개의 객체를 넣어준다.
+
+#### 무기 교체
+
+1. 스크립트
+2. bool 변수와 InputManager의 인풋추가
+3. equipWeapon 변수추가
+4. animator 내에서 파라미터 doSwap 추가
+5. any state > swap
+   1. 컨디션 doSwap
+   2. 나가는시간 없고
+   3. duration time 0
+6. Swap > exit
+   1. 컨디션x
+   2. 나가는시간 체크
+   3. duration time 0.1
+7. isSwap 변수를 두어 중첩액션을 막는다.
+   player.cs
+
+```cs
+public GameObject[] weapons;
+
+public bool[] hasWeapons;
+
+bool iDown; // interaction
+bool sDown1; // swapDown
+bool sDown2; // swapDown
+bool sDown3; // swapDown
+
+bool isDodge; // 회피 중인지
+bool isSwap; // 스왑중인지
+
+GameObject nearObject;
+GameObject equipWeapon;
+int equipWeaponIndex = -1;
+
+void Update()
+{
+	//...
+	Swap();
+	Interaction();
+}
+
+void GetInput(){
+	//..
+	iDown = Input.GetButtonDown("Interaction");
+	sDown1 = Input.GetButtonDown("Swap1");
+	sDown2 = Input.GetButtonDown("Swap2");
+	sDown3 = Input.GetButtonDown("Swap3");
+}
+
+void Move(){
+	//...
+	if(isSwap) moveVec = Vector3.zero;
+	transform.position += moveVec * speed * (wDown ? 0.3f : 1f) * Time.deltaTime;
+	//...
+}
+void Dodge(){
+
+	if(jDown && !isJump && moveVec != Vector3.zero && !isDodge && !isSwap){
+		//...
+	}
+
+}
+void Swap(){
+
+	if(sDown1 && (!hasWeapons[0] || equipWeaponIndex == 0)) return;
+	if(sDown2 && (!hasWeapons[1] || equipWeaponIndex == 1)) return;
+	if(sDown3 && (!hasWeapons[2] || equipWeaponIndex == 2)) return;
+
+	int weaponIndex = -1;
+	if (sDown1) weaponIndex = 0;
+	if (sDown2) weaponIndex = 1;
+	if (sDown3) weaponIndex = 2;
+
+	if((sDown1 || sDown2 || sDown3) && !isJump && !isDodge && !isSwap){
+		if(equipWeapon != null)
+			equipWeapon.SetActive(false);
+		equipWeapon = weapons[weaponIndex];
+		equipWeaponIndex = weaponIndex;
+		equipWeapon.SetActive(true);
+
+		anim.SetTrigger("doSwap");
+
+		isSwap = true;
+
+		Invoke("SwapOut",0.4f);
+	}
+}
+
+void SwapOut(){
+	isSwap =false;
+}
+
+void Interaction(){
+	// 상호작용의 조건
+	if(iDown && nearObject !=null && !isJump && !isDodge){
+
+		// 상호작용하는 물체의 태그에 다른 분기처리
+		if(nearObject.CompareTag("Weapon")){
+
+			// 기존에 같은 무기 소유를 했는지 체크
+			Item item = nearObject.GetComponent<Item>();
+
+			int weaponIndex = item.value;
+			hasWeapons[weaponIndex] = true;
+
+			// 근처의 오브젝트 삭제
+			Destroy(nearObject);
+		}
+	}
+}
+
+void OnTriggerStay(Collider other)
+{
+	if(other.CompareTag("Weapon")){
+		nearObject = other.gameObject;
+	}
+	// Debug.Log(nearObject);
+}
+
+void OnTriggerExit(Collider other)
+{
+	if(other.CompareTag("Weapon"))
+		nearObject = null;
+}
+```
+
 ###

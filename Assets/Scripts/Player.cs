@@ -6,6 +6,18 @@ public class Player : MonoBehaviour
     public float speed;
     public GameObject[] weapons;
     public bool[] hasWeapons;
+    public GameObject[] grenades;
+    public int hasGrenades;
+
+    public int ammo;
+    public int coin;
+    public int health;
+
+    public int maxHasGrenades;
+    public int maxAmmo;
+    public int maxCoin;
+    public int maxHealth;
+
 
     float hAxis;
     float vAxis;
@@ -155,6 +167,32 @@ public class Player : MonoBehaviour
         if(other.gameObject.CompareTag("Floor")){
             isJump=false;
             anim.SetBool("isJump", isJump);
+        }
+    }
+    void OnTriggerEnter(Collider other)
+    {
+        if(other.CompareTag("Item")){
+            Item item = other.GetComponent<Item>();
+            switch(item.type){
+                case Item.Type.Ammo:
+                    ammo += item.value;
+                    ammo = Mathf.Min(ammo,maxAmmo);
+                    break;
+                case Item.Type.Coin:
+                    coin += item.value;
+                    coin = Mathf.Min(coin,maxCoin);
+                    break;
+                case Item.Type.Heart:
+                    health += item.value;
+                    health = Mathf.Min(coin,maxHealth);
+                    break;
+                case Item.Type.Grenade:
+                    grenades[hasGrenades].SetActive(true);
+                    hasGrenades += item.value;
+                    hasGrenades = Mathf.Min(hasGrenades,maxHasGrenades);
+                    break;
+            }
+            Destroy(other.gameObject);
         }
     }
 

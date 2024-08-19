@@ -564,4 +564,107 @@ void OnTriggerExit(Collider other)
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 아이템 먹기 & 공전물체 만들기 [B42]
+
+#### 변수 생성
+
+1. 각종 제약사항 변수 생성
+2. inspector에서 값 정의
+
+#### 아이템 입수
+
+1. OnTriggerEnter를 사용해서
+2. Item tag일시 분기처리
+
+#### 공전 물체 만들기
+
+1. 플레이어내에 gameobject\[\] 변수추가
+2. 하이라키에 빈객체추가 (Grenade Group)
+   1. pos y 1.5
+3. Grenade Group 내에 빈객체 4개추가
+   1. 각자마다 x,z방향으로 음또는 양의 방향중 한방향으로만 2만큼 의 거리두게 조정
+   2. 각 방향마다 받은에셋 > Prefab의 grenade를 자식객체로 넣어준다.
+   3. grenade객체들을 rotation z 30
+4. 플레이어 주변의 grenade는 드랍 grenade와 다르게 보이게하기위하여
+5. 받은에셋 > materials 에서 Weapon grenade _orbit_ materials를 사용
+   1. 각각의 grenade아래에 mesh Object에 이 material을 넣는다.
+   2. mesh object내에 light 컴포넌트추가
+   3. range 2 intensity 1 컬러 9f4fea
+6. particle 추가
+   1. Emission 내에
+      1. rate over time이 아닌 rate over distance를 사용 10
+         1. 시간이 아닌 움직인 거리에 따라서 이펙트가 발생
+   2. Mesh Object(에 보면)
+      1. simulation space - local인 값을 world로 교체
+
+#### 공전 구현
+
+1. Orbit.cs (추후 넣는위치 Group의 하위 객체인 4개)
+2. RotateAround : 타겟 주위를 회전하는 함수
+3. player inspector에 grenades에 4를 주고 방향 아래의 grenade를 넣어준다.
+   player.cs
+
+```cs
+public int hasGrenades;
+public int ammo;
+public int coin;
+public int health;
+
+public int maxHasGrenades;
+public int maxAmmo;
+public int maxCoin;
+public int maxHealth;
+
+void OnTriggerEnter(Collider other)
+{
+	if(other.CompareTag("Item")){
+		Item item = other.GetComponent<Item>();
+		switch(item.type){
+			case Item.Type.Ammo:
+				ammo += item.value;
+				ammo = Mathf.Min(ammo,maxAmmo);
+				break;
+			case Item.Type.Coin:
+				coin += item.value;
+				coin = Mathf.Min(coin,maxCoin);
+				break;
+			case Item.Type.Heart:
+				health += item.value;
+				health = Mathf.Min(coin,maxHealth);
+				break;
+			case Item.Type.Grenade:
+				grenades[hasGrenades].SetActive(true);
+				hasGrenades += item.value;
+				hasGrenades = Mathf.Min(hasGrenades,maxHasGrenades);
+				break;
+		}
+
+		Destroy(other.gameObject);
+	}
+}
+```
+
+Orbit.cs
+
+```cs
+public class Orbit : MonoBehaviour
+{
+    public Transform target; // 공전의 중심대상
+    public float orbitSpeed;
+    Vector3 offset;
+    void Start()
+    {
+        offset = transform.position - target.position;
+    }
+
+    void Update()
+    {
+        // 코드 수정 가능
+        transform.position = target.position+offset;
+        transform.RotateAround(target.position,Vector3.up,orbitSpeed * Time.deltaTime);
+        offset = transform.position - target.position;
+    }
+}
+```
+
 ###

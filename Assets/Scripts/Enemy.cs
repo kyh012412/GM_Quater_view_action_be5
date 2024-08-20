@@ -1,20 +1,58 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
 {
     public int maxHealth;
     public int curHealth;
+    public Transform target;
+    public bool isChase;
     Rigidbody rigid; // awake에서 초기화
     BoxCollider boxCollider; // awake에서 초기화
     Material mat; // 태초의 mesh renderer가 가지고 있는 material
+    NavMeshAgent nav;
+    Animator anim;
 
     void Awake()
     {
         rigid = GetComponent<Rigidbody>();
         boxCollider = GetComponent<BoxCollider>();
-        mat = GetComponent<MeshRenderer>().material;
+        mat = GetComponentInChildren<MeshRenderer>().material;
+        nav = GetComponent<NavMeshAgent>();
+        anim = GetComponentInChildren<Animator>();
+
+        Invoke("ChaseStart",2f);
+    }
+
+    void Update()
+    {
+        if(isChase)
+            nav.SetDestination(target.position);
+        
+    }
+
+    void FreezeVelocity(){
+        if(!isChase) return;
+        rigid.velocity =Vector3.zero;
+        rigid.angularVelocity = Vector3.zero;
+    }
+
+    void ChaseStart(){
+        isChase = true;
+        anim.SetBool("isWalk",true);
+    }
+
+    // void StopToWall(){
+    //     Debug.DrawRay(transform.position,transform.forward *5,Color.green);
+    //     // isBorder = Physics.Raycast(transform.position,transform.forward,5,LayerMask.GetMask("Wall"));
+    // }
+
+    void FixedUpdate()
+    {
+        FreezeVelocity();
+        // StopToWall();
     }
 
     void OnEnable()
@@ -59,6 +97,11 @@ public class Enemy : MonoBehaviour
             mat.color = Color.white;
         }else{
             mat.color = Color.gray;
+            gameObject.layer = 14; //넘버 그대로
+            anim.SetTrigger("doDie");
+            isChase=false;
+            nav.enabled=false; // 이 옵션을 써야 y축 액션이 동작함
+
             if(isGrenade){
                 reactVec += Vector3.up * 3;
                 rigid.freezeRotation = false;
@@ -68,8 +111,7 @@ public class Enemy : MonoBehaviour
             }else{
                 rigid.AddForce(reactVec * 5,ForceMode.Impulse);
             }
-            
-            gameObject.layer = 14; //넘버 그대로
+
             Destroy(gameObject,4);
         }
     }

@@ -1359,4 +1359,116 @@ Player.cs
     }
 ```
 
+### 3D 쿼터뷰 액션게임 - 목표를 추적하는 AI 만들기 [B48]
+
+#### 오브젝트 생성
+
+1. 하이라키에 받은에셋 > prefab Enemy A를 넣어준다.
+   1. rigidbody
+      1. freeze roation x z
+   2. box collider
+      1. center 0 1.4 0
+      2. size 2.5 2.5 2.5
+   3. Enemy.cs
+      1. maxHealth 50
+      2. Materail은 이하의 객체에 잇으므로 GetComponentInchildren으로 변경
+   4. 태그 Enemy layer Enemy
+
+#### _Navigation AI_
+
+1. Enemy A에 다음 컴포넌트 추가
+   1. _NavMeshAgent : Navigation을 사용하는 인공지능 컴포넌트_
+2. target 초기화
+3. 테스트 / 에러
+   1. NavAgent를 쓰기위해서는 NavMesh가 필요
+4. _NavMesh : NavAgent가 경로를 그리기 위한 바탕 (Mesh)_
+5. unity > window > ai > Navigation
+   1. Bake 탭으로 이동
+   2. 우하단 Bake 버튼 클릭
+      1. 파랗게된 부분이 적을 따라다니는 데 필요한 바탕
+   3. NavMesh는 Static 오브젝트만 Bake 가능
+
+#### 애니메이션
+
+1. Assets/Animations에 Enemy A.controller를 만들어준다.
+   1. 이파일을 Enemy A아래있는 Mesh Object에 넣어준다.
+2. 받은에셋 > model > enemy A 에서 모든 animation을 가져와준다.
+3. 파라미터 isWalk, isAttack, doDie
+4. any state > doDie
+   1. 나가는시간 체크해제
+   2. duration 0
+5. 나머지 transition도 동일
+   Enemy.cs
+
+```cs
+public Transform target;
+
+public bool isChase;
+NavMeshAgent nav;
+
+Animator anim;
+
+void Awake()
+{
+	rigid = GetComponent<Rigidbody>();
+	boxCollider = GetComponent<BoxCollider>();
+	mat = GetComponentInChildren<MeshRenderer>().material;
+	nav = GetComponent<NavMeshAgent>();
+	anim = GetComponentInChildren<Animator>();
+	Invoke("ChaseStart",2f);
+}
+
+void Update()
+{
+	if(isChase)
+		nav.SetDestination(target.position);
+}
+
+void FreezeVelocity(){
+	if(!isChase) return;
+	rigid.velocity =Vector3.zero;
+	rigid.angularVelocity = Vector3.zero;
+}
+
+void ChaseStart(){
+	isChase = true;
+	anim.SetBool("isWalk",true);
+}
+
+void FixedUpdate()
+{
+	FreezeVelocity();
+}
+
+IEnumerator OnDamage(Vector3 reactVec,bool isGrenade){
+	reactVec = reactVec.normalized;
+	reactVec += Vector3.up;
+
+	mat.color = Color.red;
+	yield return new WaitForSeconds(0.1f);
+	if(curHealth > 0){
+		rigid.AddForce(reactVec * Random.Range(0,2),ForceMode.Impulse);
+		mat.color = Color.white;
+	}else{
+		mat.color = Color.gray;
+		gameObject.layer = 14; //넘버 그대로
+		anim.SetTrigger("doDie");
+		isChase=false;
+		nav.enabled=false; // 이 옵션을 써야 y축 액션이 동작함
+
+		if(isGrenade){
+			reactVec += Vector3.up * 3;
+			rigid.freezeRotation = false;
+
+			rigid.AddForce(reactVec * 3,ForceMode.Impulse);
+			rigid.AddTorque(reactVec * 15,ForceMode.Impulse);
+		}else{
+			rigid.AddForce(reactVec * 5,ForceMode.Impulse);
+		}
+
+		Destroy(gameObject,4);
+	}
+}
+```
+
 ###

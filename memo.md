@@ -1088,4 +1088,130 @@ void OnCollisionEnter(Collision other)
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 피격 테스터 만들기 [B46]
+
+#### 오브젝트 생성
+
+1. 하이라키에 Cube 추가 (Test Enemy)
+   1. Scale 5 3 5
+   2. rigidbody 추가
+      1. freeze rotation x, z 체크
+
+#### 충돌 이벤트
+
+1. Bullet에
+   1. Bullet tag를 추가
+   2. collider에 is trigger가 되있는지 확인
+2. Weapon에서 melee box collider가 활성화된시간을 0.3에서 0.5로 늘리기
+
+#### 피격 로직
+
+1. Material을 가져오는법
+   1. Material은 meshrenderer가 가지고 있다.
+   2. 이하의 방법을 사용해서 초기화
+      ```cs
+      Material mat; //
+      void Awake()
+      {
+      	mat = GetComponent<MeshRenderer>().material;
+      }
+      ```
+2. OnDamage 메서드 내에서 분기처리 및 render처리
+3. layer 추가
+   1. Enemy 13
+   2. EnemyDead 14
+4. 충돌 설정
+5. Enemy는 모든 태그에 충돌
+6. EnemyDead는 Floor와 Wall과 (EnemyDead)와만 충돌
+7. Test Enemy의 layer를 Enemy로 설정
+
+#### 후처리 로직
+
+1. 벡터를 계산하여 코루틴 호출시 첨부를해주고
+2. 코루틴내에서 addforce를 더하여준다.
+   Enemy.cs
+
+```cs
+public class Enemy : MonoBehaviour
+{
+    public int maxHealth;
+    public int curHealth;
+    Rigidbody rigid; // awake에서 초기화
+    BoxCollider boxCollider; // awake에서 초기화
+    Material mat; // 태초의 mesh renderer가 가지고 있는 material
+
+    void Awake()
+    {
+        rigid = GetComponent<Rigidbody>();
+        boxCollider = GetComponent<BoxCollider>();
+        mat = GetComponent<MeshRenderer>().material;
+    }
+
+    void OnEnable()
+    {
+        curHealth = maxHealth;
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("something in");
+        if(other.CompareTag("Melee")){
+            Weapon weapon = other.GetComponent<Weapon>();
+            curHealth -= weapon.damage;
+            Debug.Log("Melee : " + curHealth);
+
+            Vector3 reactVec = transform.position - other.transform.position;
+            StartCoroutine(OnDamage(reactVec));
+        }else if(other.CompareTag("Bullet")){
+            Bullet bullet = other.GetComponent<Bullet>();
+            curHealth -= bullet.damage;
+            Debug.Log("Range : " + curHealth);
+            Vector3 reactVec = transform.position - other.transform.position;
+            Destroy(other.gameObject);
+            StartCoroutine(OnDamage(reactVec));
+        }
+    }
+
+    IEnumerator OnDamage(Vector3 reactVec){
+        reactVec = reactVec.normalized;
+        reactVec += Vector3.up;
+
+        mat.color = Color.red;
+        yield return new WaitForSeconds(0.1f);
+        if(curHealth > 0){
+            rigid.AddForce(reactVec * Random.Range(0,2),ForceMode.Impulse);
+            mat.color = Color.white;
+        }else{
+            mat.color = Color.gray;
+            rigid.AddForce(reactVec * 5,ForceMode.Impulse);
+            gameObject.layer = 14; //넘버 그대로
+            Destroy(gameObject,4);
+        }
+    }
+}
+```
+
+Bullets.cs
+
+```cs
+    void OnCollisionEnter(Collision other)
+    {
+        if(other.gameObject.CompareTag("Floor")){ // Bullet Case를 위한 로직
+            Destroy(gameObject,3);
+        }else if(other.gameObject.CompareTag("Wall")){
+            Destroy(gameObject);
+        }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        switch(other.gameObject.tag){ // 탄알 제거 로직
+            case "Floor":
+            case "Wall":
+                Destroy(gameObject);
+                break;
+        }
+    }
+```
+
 ###

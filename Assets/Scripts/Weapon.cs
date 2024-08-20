@@ -20,7 +20,7 @@ public class Weapon : MonoBehaviour
 
     public void Use(){
         if(type == Type.Melee){
-            StopCoroutine(Swing());
+            // StopCoroutine(Swing());
             StartCoroutine(Swing());
         }else if(type == Type.Range && curAmmo > 0){
             curAmmo--;
@@ -29,13 +29,13 @@ public class Weapon : MonoBehaviour
     }
 
     IEnumerator Swing(){
-        yield return new WaitForSeconds(0.1f); // 0.1초 대기
+        yield return null; // 0.1초 대기
         meleeArea.enabled = true;
         trailEffect.enabled = true;
-        yield return new WaitForSeconds(0.3f);
-        meleeArea.enabled = false;
+        yield return new WaitForSeconds(0.5f);
 
-        yield return new WaitForSeconds(0.3f);
+        meleeArea.enabled = false;
+        yield return new WaitForSeconds(0.1f);
         trailEffect.enabled = false;
     }
 

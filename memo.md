@@ -1214,4 +1214,149 @@ Bullets.cs
     }
 ```
 
+### 3D 쿼터뷰 액션게임 - 수류탄 구현하기 [B47]
+
+#### 오브젝트 생성
+
+1. 새로운 grenade를 위해 받은 에셋 > prefab에서 하이라키로 grenade 드랍하여 생성(Throw Grenade)
+2. grenade
+   1. 받은에셋 > particles 에 grenade explosion를 greande 자식 객체로 넣어준다.
+      1. 비활성화
+   2. rigidbody와
+   3. sphere collider 추가
+      1. 반지름 0.7
+      2. 새로운 physics material을 만들어서 추가한다.(Grenade)
+         1. 1,1,1
+3. Mesh Object에 trail renderer 컴포넌트 추가 5. material default-line 6. 좌하단 컬러 ac1bde 7. 60 FF7AA8
+4. grenade layer player bullet
+5. 이 완성된것을 prefab화 한다.
+   1. 위치 초기화
+
+#### 수류탄 투척
+
+1. Player.cs 내에 grenadeObj를 만들어주고 연결
+
+#### 수류탄 폭팔
+
+1. Grenade.cs
+2. 테스트
+
+#### 수류탄 피격
+
+1. _원형 다중 raycast 하는법_
+
+```cs
+	// 센터, 반지름, 쏘는방향 (무관), 구체를 위로보내는것이 아니기에 0, 레이어 마스크
+
+	RaycastHit[] rayHits = Physics.SphereCastAll(transform.position,15f,Vector3.up,0f,LayerMask.GetMask("Enemy"));
+```
+
+Grenade.cs
+
+```cs
+public class Grenade : MonoBehaviour
+{
+    public GameObject meshObj;
+    public GameObject effectObj;
+    public Rigidbody rigid;
+
+    void Start()
+    {
+        StartCoroutine(Explosion());
+    }
+
+    IEnumerator Explosion(){
+        yield return new WaitForSeconds(3f);
+        rigid.velocity = Vector3.zero;
+        rigid.angularVelocity = Vector3.zero;
+        meshObj.SetActive(false);
+        effectObj.SetActive(true);
+
+        // 센터, 반지름, 쏘는방향 (무관), 구체를 위로보내는것이 아니기에 0, 레이어 마스크
+        RaycastHit[] rayHits = Physics.SphereCastAll(transform.position,15f,Vector3.up,0f,LayerMask.GetMask("Enemy"));
+
+        foreach(RaycastHit hitObj in rayHits){
+            hitObj.transform.GetComponent<Enemy>().HitByGrenade(transform.position);
+        }
+        Destroy(gameObject,5f);
+    }
+}
+```
+
+Enemy.cs
+
+```cs
+    IEnumerator OnDamage(Vector3 reactVec){
+        yield return OnDamage(reactVec,false);
+    }
+
+    IEnumerator OnDamage(Vector3 reactVec,bool isGrenade){
+        reactVec = reactVec.normalized;
+        reactVec += Vector3.up;
+        mat.color = Color.red;
+        yield return new WaitForSeconds(0.1f);
+       
+        if(curHealth > 0){
+            rigid.AddForce(reactVec * Random.Range(0,2),ForceMode.Impulse);
+            mat.color = Color.white;
+        }else{
+            mat.color = Color.gray;
+            if(isGrenade){
+                reactVec += Vector3.up * 3;
+                rigid.freezeRotation = false;
+                rigid.AddForce(reactVec * 3,ForceMode.Impulse);
+                rigid.AddTorque(reactVec * 15,ForceMode.Impulse);
+            }else{
+                rigid.AddForce(reactVec * 5,ForceMode.Impulse);
+            }
+            gameObject.layer = 14; //넘버 그대로
+            Destroy(gameObject,4);
+        }
+    }
+
+    public void HitByGrenade(Vector3 explosionPos){
+        curHealth -= 100;
+        Vector3 reactVec = transform.position - explosionPos;
+        StartCoroutine(OnDamage(reactVec,true));
+    }
+```
+
+Player.cs
+
+```cs
+    public GameObject grenadeObj;
+    bool fDown2; // FireDown의 약자
+
+    void Update()
+    {
+	    //...
+        Grenade();
+    }
+    void GetInput(){
+        fDown2 = Input.GetButtonDown("Fire2"); // 마우스 우클릭
+    }
+   
+    void Grenade(){
+        if(hasGrenades <= 0) return;
+        if(fDown2 && !isReload && !isSwap){
+            Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit rayHit;
+            if(Physics.Raycast(ray, out rayHit, 100)){
+                Vector3 nextVec = rayHit.point - transform.position;
+                nextVec.y=0;
+                transform.LookAt(transform.position + nextVec);
+                GameObject instantGrenade = Instantiate(grenadeObj,transform.position,transform.rotation);
+                Rigidbody rigidGrenade = instantGrenade.GetComponent<Rigidbody>();
+
+                nextVec.y=10;
+                rigidGrenade.AddForce(nextVec,ForceMode.Impulse);
+                rigidGrenade.AddTorque(Vector3.back *10,ForceMode.Impulse);
+
+                hasGrenades--;
+                grenades[hasGrenades].SetActive(false);
+            }
+        }
+    }
+```
+
 ###

@@ -8,6 +8,7 @@ public class Player : MonoBehaviour
     public bool[] hasWeapons;
     public GameObject[] grenades;
     public int hasGrenades;
+    public GameObject grenadeObj;
     public Camera followCamera;
 
     public int ammo;
@@ -25,7 +26,8 @@ public class Player : MonoBehaviour
 
     bool wDown; // walkDown의 약자
     bool jDown; // jumpDown의 약자
-    bool fDown; // FireDown의 약자
+    bool fDown1; // FireDown의 약자
+    bool fDown2; // FireDown의 약자
     bool rDown; // ReloadDown의 약자
     bool iDown; // interaction
     bool sDown1; // swapDown
@@ -62,6 +64,7 @@ public class Player : MonoBehaviour
         Move();
         Turn();
         Jump();
+        Grenade();
         Attack();
         Reload();
         Dodge();
@@ -90,7 +93,8 @@ public class Player : MonoBehaviour
         vAxis = Input.GetAxisRaw("Vertical");
         wDown = Input.GetButton("Walk");
         jDown = Input.GetButtonDown("Jump");
-        fDown = Input.GetButton("Fire1"); // 기본적인 마우스 좌클릭
+        fDown1 = Input.GetButton("Fire1"); // 기본적인 마우스 좌클릭
+        fDown2 = Input.GetButtonDown("Fire2"); // 마우스 우클릭
         rDown = Input.GetButtonDown("Reload"); 
         iDown = Input.GetButtonDown("Interaction");
         sDown1 = Input.GetButtonDown("Swap1");
@@ -120,7 +124,7 @@ public class Player : MonoBehaviour
         transform.LookAt(transform.position + moveVec);
 
         // #2 마우스에 의한 회전
-        if(fDown){
+        if(fDown1){
             Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
             RaycastHit rayHit;
             if(Physics.Raycast(ray, out rayHit, 100)){
@@ -137,6 +141,30 @@ public class Player : MonoBehaviour
             isJump = true;
             anim.SetBool("isJump", isJump);
             anim.SetTrigger("doJump");
+        }
+    }
+
+    void Grenade(){        
+        if(hasGrenades <= 0) return;
+        
+        if(fDown2 && !isReload && !isSwap){
+            Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit rayHit;
+            if(Physics.Raycast(ray, out rayHit, 100)){
+                Vector3 nextVec = rayHit.point - transform.position;
+                nextVec.y=0;
+                transform.LookAt(transform.position + nextVec);
+
+                GameObject instantGrenade = Instantiate(grenadeObj,transform.position,transform.rotation);
+                Rigidbody rigidGrenade = instantGrenade.GetComponent<Rigidbody>();
+
+                nextVec.y=10;
+                rigidGrenade.AddForce(nextVec,ForceMode.Impulse);
+                rigidGrenade.AddTorque(Vector3.back *10,ForceMode.Impulse);
+
+                hasGrenades--;
+                grenades[hasGrenades].SetActive(false);
+            }
         }
     }
 
@@ -164,7 +192,7 @@ public class Player : MonoBehaviour
         fireDelay += Time.deltaTime;
         isFireReady = equipWeapon.rate < fireDelay;
 
-        if(fDown && isFireReady && !isDodge && !isSwap){
+        if(fDown1 && isFireReady && !isDodge && !isSwap){
             equipWeapon.Use();
             anim.SetTrigger(equipWeapon.type ==Weapon.Type.Melee ? "doSwing" : "doShot");
             fireDelay = 0;

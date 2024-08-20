@@ -1001,4 +1001,91 @@ void ReloadOut(){
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 플레이어 물리문제 고치기 [B45]
+
+#### 자동회전 방지
+
+1. _Rigidbody.angularVelocity : 물리 회전속도_
+2. FreezeRotation 메서드 생성 후 FixedUpdate에서 호출
+
+#### 충돌 레이어 설정
+
+1. 레이어 정의
+   1. Floor 8
+   2. Player 9
+   3. PlayerBullet 10
+   4. BulletCase 11
+   5. Wall 12
+2. 각 객체에 레이어 넣어주기
+3. edit > project settings > physics 아래에
+   1. layer collision matrix
+4. BulletCase는 Floor와 BulletCase랑만 상호작용 (나머지 해제)
+5. PlayerBullet은 Player와 비상호작용
+6. 상호작용하지않게되면 collision event나 trigger등이 발동하지않음
+
+#### 벽 관통 방지
+
+1. `StopToWall()` 메서드 생성
+2. isBorder로 Move 메서드 일부제어
+
+#### 아이템 충돌 제거
+
+1. Item.cs 수정
+2. GetComponent로 컴포넌트를 가져오는데
+3. Sphere collider가 2개잇으므로
+4. 제일 위에있는것을 가져오게됨
+5. inspector상의 radius가 0.5인 collider가 상단에오도록 조정
+6. 9개의 아이템을 이렇게 만들어준다.
+
+player.cs
+
+```cs
+bool isBorder;
+
+void FreezeRotation(){
+	rigid.angularVelocity =Vector3.zero;
+}
+
+void StopToWall(){
+	Debug.DrawRay(transform.position,transform.forward *5,Color.green);
+	isBorder = Physics.Raycast(transform.position,transform.forward,5,LayerMask.GetMask("Wall"));
+}
+
+void FixedUpdate()
+{
+	FreezeRotation();
+	StopToWall();
+}
+
+void Move(){
+	//...
+	if(!isBorder)
+		transform.position += moveVec * speed * (wDown ? 0.3f : 1f) * Time.deltaTime;
+
+	anim.SetBool("isRun", moveVec != Vector3.zero);
+	anim.SetBool("isWalk", wDown);
+}
+```
+
+Item.cs
+
+```cs
+Rigidbody rigid;
+SphereCollider sphereCollider;
+
+void Awake()
+{
+	rigid = GetComponent<Rigidbody>();
+	sphereCollider = GetComponent<SphereCollider>();
+}
+
+void OnCollisionEnter(Collision other)
+{
+	if(other.gameObject.CompareTag("Floor")){
+		rigid.isKinematic = true;
+		sphereCollider.enabled = false;
+	}
+}
+```
+
 ###

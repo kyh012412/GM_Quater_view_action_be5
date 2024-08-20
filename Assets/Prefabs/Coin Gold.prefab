@@ -94,7 +94,6 @@ GameObject:
   - component: {fileID: 1251618182100644873}
   - component: {fileID: 6053054772731807980}
   - component: {fileID: 6053054772731807982}
-  - component: {fileID: 6053054772731807981}
   - component: {fileID: 6053054772731807979}
   m_Layer: 0
   m_Name: Coin Gold
@@ -150,19 +149,6 @@ SphereCollider:
   serializedVersion: 2
   m_Radius: 5
   m_Center: {x: 0, y: 0, z: 0}
---- !u!135 &6053054772731807981
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1879536746278366899}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 1, z: 0}
 --- !u!114 &6053054772731807979
 MonoBehaviour:
   m_ObjectHideFlags: 0

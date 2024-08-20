@@ -6,6 +6,7 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     public int damage;
+    public bool isMelee;
 
     void OnCollisionEnter(Collision other)
     {
@@ -21,7 +22,8 @@ public class Bullet : MonoBehaviour
         switch(other.gameObject.tag){ // 탄dkf 제거 로직
             case "Floor":
             case "Wall":
-                Destroy(gameObject);
+                if(!isMelee)
+                    Destroy(gameObject);
                 break;
         }
     }

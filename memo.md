@@ -1471,4 +1471,257 @@ IEnumerator OnDamage(Vector3 reactVec,bool isGrenade){
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - 다양한 몬스터 만들기 [B49]
+
+#### 플레이어 피격
+
+1. Player.cs
+2. 코루틴 OnDamage()와 bool isDamage를 만든다.
+3. 코드
+4. 하이라키에 빈객체 생성(EnemyBullet)
+   1. box collider
+      1. is collider 체크
+   2. tag EnemyBullet
+   3. layer EnemyBullet
+   4. Bullet.cs
+5. 테스트
+
+#### 몬스터 이동 보정
+
+1. Enemy.cs
+
+#### 일반형 몬스터
+
+1. EnemyBullet을 Enemy A내로 넣어준다.
+   1. 근접공격 범위로 사용될 자리에 놓아준다.
+   2. position 0 1.2 2.63
+   3. box collider 컴포넌트 비활성화
+2. `public BoxCollider meleeArea;`와 함께 할당
+3. `public bool isAttack;` 선언
+4. player 객체의 layer가 Player인지 확인
+
+#### 돌격형 몬스터
+
+1. 받은 에셋 > Prefab > Enemy B를 꺼내 하이라키에 넣어준다.
+   1. Enemy A로부터 컴포넌트롤 copy pastes 해온다.
+      1. Enemy.cs 에 Melee Area만 신경써서 별개의 객체를 복사해온후 연결해준다.
+   2. Max Health는 80으로 준다.
+   3. Mesh Object에 Animator를 만들어준다.
+      1. Enemy A를 복사하여 Enemy B로 해준뒤 이것을 사용
+2. Enemy A와 B에 차이를 주기 위해서
+3. Nav Mesh Agent내의 속성값을 조정해준다.
+4. A
+   1. speed 10
+   2. Angular Speed(회전속도) 360
+   3. Acceleration(가속도) 30
+5. B
+   1. 10, 360, 50
+6. 테스트 / 문제발견
+   1. 공격범위 콜라이더의 tag와 layer가 EnemyBullet으로되어있어서 이값이 벽에 닿으면 사라지며 에러를 발생시킴
+
+#### 원거리형 몬스터
+
+1. Enemy C를 넣어주고 기본적인 설정을한다.
+   1. 컴포넌트 애니메이션
+   2. Box collider
+      1. center 0 2 0
+      2. size 3 3 3
+   3. Nav Mesh Agent
+      1. speed 5
+      2. Angular Speed 480
+      3. Acceleration 60
+   4. Enemy.cs
+      1. type c
+      2. 200
+2. 받은 에셋 > prefab에 missile을 하이라키에 놓고
+3. mesh object
+   1. pos의 높이를 3으로 조정
+   2. rotation y 90
+   3. Missile.cs
+4. Missile 객체내에 Effect 객체추가(Effect)
+   1. particle system
+      1. pos 0 3 1
+   2. Renderer - material 넣어주기
+   3. Start lifetime 0.6
+   4. Start speed 15
+   5. start size 0.7
+   6. emission - Rate over time 30
+   7. shape - angle 14
+   8. Radius - 0.5 (시작되는 반지름의크기)
+   9. Color over lifetime
+      1. ff8a00 ~ yellow
+   10. Size over lifetime 점점 감소하는크기
+5. Missile에
+   1. rigidbody 추가
+      1. use gravity 체크해제
+   2. box collider 추가
+      1. center 0 3 0
+      2. size 1 1 1
+      3. is trigger 체크
+   3. Bullet.cs
+      1. 15
+   4. tag EnemyBullet, layer EnemyBullet
+   5. prefab화
+      1. z축(양의 방향)이 정면임
+      2. Mesh object rotation y = -90
+      3. effect의 shape의 rotation y 180
+      4. position z 1> -1
+6. Enemy C도 기존과 같이 복사해서 애니메이터를 넣어준뒤
+   1. 각각의 animation을 바꿔준다.
+   2. 대체품은 쿼드 에셋 > models > EnemyC에 있다.
+7. EnemyC도 태그와 레이어를 설정해준다.
+8. Enemy와 EnemyBullet이 충돌하지 않도록 설정해준다.
+9. 점검 1. Enemy A,B,C먼저 태그와 레이어설정 2. 그후 Enemy A,B 이하의 EnemyBullet을 태그와 레이어를 변경해준다. 3. Missile도 태그와 레이어에 EnemyBullet를 맞춰준다.
+   Missile.cs
+
+```cs
+public class Missile : MonoBehaviour
+{
+    void Update()
+    {
+        transform.Rotate(Vector3.right*30 * Time.deltaTime);
+    }
+}
+```
+
+Bullet.cs
+
+```cs
+	void OnTriggerEnter(Collider other)
+	{
+		switch(other.gameObject.tag){ // 탄 제거 로직
+			case "Floor":
+			case "Wall":
+				if(!isMelee)
+					Destroy(gameObject);
+				break;
+		}
+	}
+```
+
+Enemy.cs
+
+```cs
+	public enum Type {A,B,C};
+
+	public Type enemyType;
+	public BoxCollider meleeArea;
+
+	public GameObject bullet;
+	public bool isAttack;
+
+	void FixedUpdate()
+	{
+		FreezeVelocity();
+		Targeting();// 가까이에 있는 물체 감지
+	}
+
+	void Targeting(){// 가까이에 있는 물체 감지
+		float targetRadius = 1.5f; // 최초 만드는 원의 반지름
+		float targetRange = 3f; // 원을 쏘는 거리
+
+		switch(enemyType){
+			case Type.A:
+				targetRadius = 1.5f;
+				targetRange = 3f;
+				break;
+			case Type.B:
+				targetRadius = 1f;
+				targetRange = 12f;
+				break;
+			case Type.C:
+				targetRadius = 0.5f;
+				targetRange = 25f;
+				break;
+		}
+
+		RaycastHit[] rayHits = Physics.SphereCastAll(transform.position,targetRadius,transform.forward,targetRange,LayerMask.GetMask("Player"));
+		if(rayHits.Length > 0 && !isAttack){
+			StartCoroutine(Attack());
+		}
+	}
+
+	IEnumerator Attack(){
+		isChase = false;
+		isAttack = true;
+		anim.SetBool("isAttack",true);
+
+		switch(enemyType){
+			case Type.A:
+				yield return new WaitForSeconds(0.2f);
+				meleeArea.enabled = true;
+
+				yield return new WaitForSeconds(1f);
+				meleeArea.enabled = false;
+
+				yield return new WaitForSeconds(1f);
+				break;
+
+			case Type.B:
+				yield return new WaitForSeconds(0.1f);
+				rigid.AddForce(transform.forward*20,ForceMode.Impulse);
+				meleeArea.enabled =true;
+
+				yield return new WaitForSeconds(0.5f);
+				rigid.velocity = Vector3.zero;
+				rigid.angularVelocity = Vector3.zero;
+				meleeArea.enabled = false;
+
+				yield return new WaitForSeconds(2f);
+				break;
+
+			case Type.C:
+				yield return new WaitForSeconds(0.5f);
+
+				GameObject instantBullet = Instantiate(bullet,transform.position,transform.rotation);
+
+				Rigidbody rigidBullet = instantBullet.GetComponent<Rigidbody>();
+
+				rigidBullet.velocity = transform.forward * 20;
+
+				yield return new WaitForSeconds(2f);
+				break;
+		}
+
+
+		isChase = true;
+		isAttack = false;
+		anim.SetBool("isAttack",false);
+	}
+```
+
+Player.cs
+
+```cs
+	void OnTriggerEnter(Collider other)
+	{
+		if(other.CompareTag("Item")){ //Item먹었을때
+			//...
+		}else if(other.CompareTag("EnemyBullet") ) { // 피격을 위한 분기 처리 //|| other.CompareTag("Enemy")
+			if(!isDamage){
+				Bullet enemyBullet = other.GetComponent<Bullet>();
+				health -= enemyBullet.damage;
+				if(other.GetComponent<Rigidbody>() != null){
+					Destroy(other.gameObject);
+				}
+
+				StartCoroutine(OnDamage());
+			}
+		}
+	}
+
+	IEnumerator OnDamage(){
+		isDamage = true;
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = Color.yellow;
+		}
+
+		yield return new WaitForSeconds(1f);
+		isDamage = false;
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = Color.white;
+		}
+	}
+```
+
 ###

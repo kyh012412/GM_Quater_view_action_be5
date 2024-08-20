@@ -1,3 +1,4 @@
+using System.Collections;
 using Unity.VisualScripting;
 using UnityEngine;
 
@@ -40,12 +41,14 @@ public class Player : MonoBehaviour
     bool isReload; // 재장전중인지
     bool isFireReady = true; // (공격 가능한 상태)
     bool isBorder;
+    bool isDamage;
     
     Vector3 moveVec;
     Vector3 dodgeVec;
 
     Animator anim;
     Rigidbody rigid;
+    MeshRenderer[] meshs;
 
     GameObject nearObject;
     Weapon equipWeapon;
@@ -56,6 +59,7 @@ public class Player : MonoBehaviour
     {
         anim = GetComponentInChildren<Animator>();
         rigid = GetComponent<Rigidbody>();
+        meshs = GetComponentsInChildren<MeshRenderer>();
     }
 
     void Update()
@@ -280,7 +284,7 @@ public class Player : MonoBehaviour
     }
     void OnTriggerEnter(Collider other)
     {
-        if(other.CompareTag("Item")){
+        if(other.CompareTag("Item")){ //Item먹었을때
             Item item = other.GetComponent<Item>();
             switch(item.type){
                 case Item.Type.Ammo:
@@ -302,6 +306,29 @@ public class Player : MonoBehaviour
                     break;
             }
             Destroy(other.gameObject);
+        }else if(other.CompareTag("EnemyBullet") ) { // 피격을 위한 분기 처리 //|| other.CompareTag("Enemy")
+            if(!isDamage){
+                Bullet enemyBullet = other.GetComponent<Bullet>();
+                health -= enemyBullet.damage;
+                if(other.GetComponent<Rigidbody>() != null){
+                    Destroy(other.gameObject);
+                }
+
+                StartCoroutine(OnDamage());
+            }
+
+        }
+    }
+
+    IEnumerator OnDamage(){
+        isDamage = true;
+        foreach(MeshRenderer mesh in meshs){
+            mesh.material.color = Color.yellow;
+        }
+        yield return new WaitForSeconds(1f);
+        isDamage = false;
+        foreach(MeshRenderer mesh in meshs){
+            mesh.material.color = Color.white;
         }
     }
 

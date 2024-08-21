@@ -1,11 +1,10 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
 {
-    public enum Type {A,B,C};
+    public enum Type { A, B, C, D };
     public Type enemyType;
     public int maxHealth;
     public int curHealth;
@@ -14,26 +13,28 @@ public class Enemy : MonoBehaviour
     public GameObject bullet;
     public bool isChase;
     public bool isAttack;
-    Rigidbody rigid; // awake에서 초기화
-    BoxCollider boxCollider; // awake에서 초기화
-    Material mat; // 태초의 mesh renderer가 가지고 있는 material
-    NavMeshAgent nav;
-    Animator anim;
+    public bool isDead;
+    public Rigidbody rigid; // awake에서 초기화
+    public BoxCollider boxCollider; // awake에서 초기화
+    public MeshRenderer[] meshs; // 태초의 mesh renderer가 가지고 있는 material
+    public NavMeshAgent nav;
+    public Animator anim;
 
     void Awake()
     {
         rigid = GetComponent<Rigidbody>();
         boxCollider = GetComponent<BoxCollider>();
-        mat = GetComponentInChildren<MeshRenderer>().material;
+        meshs = GetComponentsInChildren<MeshRenderer>();
         nav = GetComponent<NavMeshAgent>();
         anim = GetComponentInChildren<Animator>();
 
-        Invoke("ChaseStart",2f);
+        if(enemyType != Type.D)
+            Invoke("ChaseStart",2f);
     }
 
     void Update()
     {
-        if(nav.enabled){
+        if(nav.enabled && enemyType != Type.D){
             nav.SetDestination(target.position); //목표물 갱신이 안될뿐 목표물의 마지막위치로 이동이 되어버림
             nav.isStopped=!isChase;
         }
@@ -62,27 +63,29 @@ public class Enemy : MonoBehaviour
     }
 
     void Targeting(){// 가까이에 있는 물체 감지
-        float targetRadius = 1.5f; // 최초 만드는 원의 반지름
-        float targetRange = 3f; // 원을 쏘는 거리
+        if(!isDead && enemyType != Type.D){
+            float targetRadius = 1.5f; // 최초 만드는 원의 반지름
+            float targetRange = 3f; // 원을 쏘는 거리
 
-        switch(enemyType){
-            case Type.A:
-                targetRadius = 1.5f;
-                targetRange = 3f;
-                break;
-            case Type.B:
-                targetRadius = 1f;
-                targetRange = 12f;
-                break;
-            case Type.C:
-                targetRadius = 0.5f;
-                targetRange = 25f;
-                break;
-        }
+            switch(enemyType){
+                case Type.A:
+                    targetRadius = 1.5f;
+                    targetRange = 3f;
+                    break;
+                case Type.B:
+                    targetRadius = 1f;
+                    targetRange = 12f;
+                    break;
+                case Type.C:
+                    targetRadius = 0.5f;
+                    targetRange = 25f;
+                    break;
+            }
 
-        RaycastHit[] rayHits = Physics.SphereCastAll(transform.position,targetRadius,transform.forward,targetRange,LayerMask.GetMask("Player"));
-        if(rayHits.Length > 0 && !isAttack){
-            StartCoroutine(Attack());
+            RaycastHit[] rayHits = Physics.SphereCastAll(transform.position,targetRadius,transform.forward,targetRange,LayerMask.GetMask("Player"));
+            if(rayHits.Length > 0 && !isAttack){
+                StartCoroutine(Attack());
+            }
         }
     }
 
@@ -159,6 +162,14 @@ public class Enemy : MonoBehaviour
             StartCoroutine(OnDamage(reactVec));
         }
     }
+
+    IEnumerator ChangeColor(Color color){
+        foreach(MeshRenderer mesh in meshs){
+            mesh.material.color = color;
+        }
+        yield break;
+    }
+
     IEnumerator OnDamage(Vector3 reactVec){
         yield return OnDamage(reactVec,false);
     }
@@ -167,14 +178,15 @@ public class Enemy : MonoBehaviour
         reactVec = reactVec.normalized;
         reactVec += Vector3.up;
 
-        mat.color = Color.red;
+        ChangeColor(Color.red);
         yield return new WaitForSeconds(0.1f);
         if(curHealth > 0){
             rigid.AddForce(reactVec * Random.Range(0,2),ForceMode.Impulse);
-            mat.color = Color.white;
+            ChangeColor(Color.white);
         }else{
-            mat.color = Color.gray;
+            ChangeColor(Color.gray);
             gameObject.layer = 14; //넘버 그대로
+            isDead = true;
             anim.SetTrigger("doDie");
             isChase=false;
             nav.enabled=false; // 이 옵션을 써야 y축 액션이 동작함
@@ -189,7 +201,8 @@ public class Enemy : MonoBehaviour
                 rigid.AddForce(reactVec * 5,ForceMode.Impulse);
             }
 
-            Destroy(gameObject,4);
+            if(enemyType != Type.D)
+                Destroy(gameObject,4);
         }
     }
 

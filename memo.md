@@ -1724,4 +1724,462 @@ Player.cs
 	}
 ```
 
+### 3D 쿼터뷰 액션게임 - 다양한 패턴을 구사하는 보스 만들기 [B50]
+
+#### 보스 기본 세팅
+
+1. 쿼드에셋 > prefab Enemy D를 하이라키에 드랍
+2. Mesh Object에 Animator 추가
+3. 쿼드에셋 > 모델 > EnemyD에서 필요한 state를 가져와준다.
+4. 파라미터 doDie, doBigShot, doShot, doTaunt 사용
+5. Enemy D
+   1. Scale 3 3 3
+      1. Mesh Object의 Scale 1 1 1
+   2. rigidbody
+      1. freeze rotation x,z
+   3. box collider
+      1. center 0 2 0
+      2. size 3.7 3.7 3.7
+   4. nav mesh agent
+      1. speed 40
+      2. angular Speed 0
+      3. acceleration 60
+6. Enemy D > 빈객체 추가 (Missile Port A)
+   1. pos 2 2 1
+   2. Missile Port B도 유사하게 만들어준다. (대칭)
+7. Enemy D > 빈객체 추가(Melee Area)
+   1. box collider
+      1. center 0 0.5 0
+      2. size 3.5 0.5 3.5
+      3. is trigger 체크
+      4. 비활성화
+   2. Bullet.cs 추가
+      1. 25 , is melee true
+   3. 전체가 Enemy Enemy
+   4. Melee Area만 EnemyBullet으로 수정
+
+#### 투사체 만들기
+
+1. 쿼드 에셋 > prefab에서 Missile Boss,Boss Rock를 하이라키에 드랍
+2. Missile Boss > Mesh Object
+   1. pos y 4
+   2. scale 0.4
+   3. rotation y 90
+   4. Missile.cs추가
+3. Missile Boss > Effect
+   1. position 0 4 -1
+   2. Particle system
+   3. material - default-line
+   4. shape에서 방향조정
+      1. angle 10
+      2. radius 0.6
+   5. color over lifetime
+   6. size over lifetime
+   7. start lifetime 1
+   8. start speed 15
+   9. start size 0.9
+   10. simulate space world
+   11. Emission - rate over time 30
+4. Missile Boss
+   1. rigidbody 추가
+      1. use gravity 비활성화
+   2. box collider
+      1. center 0 4 0
+      2. size 2.5 2.5 3.5
+      3. is trigger 체크
+   3. 태그와 layer설정
+   4. nav mesh agent
+      1. speed 35
+      2. angular speed 360
+      3. acceleration 30
+5. BossMissile.cs 에서 Bullet을 상속받아서 코드완성
+
+#### 투사체(바위) 만들기
+
+1. Boss Rock객체에
+   1. rigidbody 추가
+      1. mass 10
+      2. angular drag (회전저항) 0
+      3. freeze rotation y,z
+   2. sphere collider
+      1. center 0 5 0
+      2. radius 4
+   3. BossRock.cs
+      1. damage 30
+   4. tag와 layer 설정
+2. bullet.cs에
+   1. bool 변수 isRock추가
+3. Boss Rock 객체에 2번째 sphere collider 추가
+   1. 그전과 같은 크기로하고 is trigger체크
+4. Prefab화
+   1. 포지션 초기화
+
+#### 보스 로직 준비
+
+1. mat 을 MeshRenderer\[\] meshs로 변경
+2. Enemy.cs 를 상속받는 Boss.cs생성3034
+3. Enemy D로 와서 인스펙터에서 연결
+   1. bullet은 BossRock 사용
+4. 테스트
+   1. boss가 플레이어 이동방향을 에측해서 그곳을 바라보면 ok
+
+#### 패턴 로직
+
+1. 문제 발생
+2. Enemy에서 private인것은 상속되지않았음
+3. 일부 필요한 값들은 public으로 전환
+4. _주의 : Awake() 함수는 자식 스크립트만 단독 실행!_
+   1. Enemy.cs의 Awake는 Boss.cs에서 실행되지 않음
+   2. Boss쪽 awake에 앞코드를 복사해서 넣어준다.
+5. 테스트
+
+#### 로직 점검
+
+1. player가 피격무적상태중이더라도 투사체는 삭제되어야한다.
+2. Boss Melee Area
+   Bullet.cs
+
+```cs
+	public bool isRock;
+	void OnCollisionEnter(Collision other)
+	{
+		if(!isRock && other.gameObject.CompareTag("Floor")){ // Bullet Case를 위한 로직
+			Destroy(gameObject,3);
+		}
+	}
+
+	void OnTriggerEnter(Collider other)
+	{
+		switch(other.gameObject.tag){ // 탄dkf 제거 로직
+			// case "Floor":
+			case "Wall":
+				if(!isMelee)
+					Destroy(gameObject);
+				break;
+		}
+	}
+```
+
+Enemy.cs
+
+```cs
+	public enum Type { A, B, C, D };
+	public bool isDead;
+	public Rigidbody rigid; // awake에서 초기화
+	public BoxCollider boxCollider; // awake에서 초기화
+	public MeshRenderer[] meshs; // 태초의 mesh renderer가 가지고 있는 material
+	public NavMeshAgent nav;
+	public Animator anim;
+
+	void Awake()
+	{
+		//...
+		meshs = GetComponentsInChildren<MeshRenderer>();
+
+		if(enemyType != Type.D)
+			Invoke("ChaseStart",2f);
+	}
+	void Update()
+	{
+		if(nav.enabled && enemyType != Type.D){
+			nav.SetDestination(target.position); //목표물 갱신이 안될뿐 목표물의 마지막위치로 이동이 되어버림
+			nav.isStopped=!isChase;
+		}
+	}
+
+	void Targeting(){// 가까이에 있는 물체 감지
+		if(!isDead && enemyType != Type.D){
+			float targetRadius = 1.5f; // 최초 만드는 원의 반지름
+			float targetRange = 3f; // 원을 쏘는 거리
+
+			switch(enemyType){
+				case Type.A:
+					targetRadius = 1.5f;
+					targetRange = 3f;
+					break;
+				case Type.B:
+					targetRadius = 1f;
+					targetRange = 12f;
+					break;
+				case Type.C:
+					targetRadius = 0.5f;
+					targetRange = 25f;
+					break;
+			}
+
+			RaycastHit[] rayHits = Physics.SphereCastAll(transform.position,targetRadius,transform.forward,targetRange,LayerMask.GetMask("Player"));
+
+			if(rayHits.Length > 0 && !isAttack){
+				StartCoroutine(Attack());
+			}
+		}
+	}
+
+	IEnumerator ChangeColor(Color color){
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = color;
+		}
+
+		yield break;
+	}
+
+	IEnumerator OnDamage(Vector3 reactVec,bool isGrenade){
+		reactVec = reactVec.normalized;
+		reactVec += Vector3.up;
+
+		ChangeColor(Color.red);
+		yield return new WaitForSeconds(0.1f);
+		if(curHealth > 0){
+			rigid.AddForce(reactVec * Random.Range(0,2),ForceMode.Impulse);
+			ChangeColor(Color.white);
+		}else{
+			ChangeColor(Color.gray);
+			gameObject.layer = 14; //넘버 그대로
+			isDead = true;
+			anim.SetTrigger("doDie");
+			isChase=false;
+			nav.enabled=false; // 이 옵션을 써야 y축 액션이 동작함
+
+			if(isGrenade){
+				reactVec += Vector3.up * 3;
+				rigid.freezeRotation = false;
+
+				rigid.AddForce(reactVec * 3,ForceMode.Impulse);
+				rigid.AddTorque(reactVec * 15,ForceMode.Impulse);
+			}else{
+				rigid.AddForce(reactVec * 5,ForceMode.Impulse);
+			}
+
+			if(enemyType != Type.D)
+				Destroy(gameObject,4);
+		}
+	}
+```
+
+Player.cs
+
+```cs
+	void OnTriggerEnter(Collider other)
+	{
+		if(other.CompareTag("Item")){ //Item먹었을때
+			//...
+		}else if(other.CompareTag("EnemyBullet") ) { // 피격을 위한 분기 처리 //|| other.CompareTag("Enemy")
+			if(!isDamage){
+				Bullet enemyBullet = other.GetComponent<Bullet>();
+				health -= enemyBullet.damage;
+
+				bool isBossAtk = other.name == "Boss Melee Area";
+				StartCoroutine(OnDamage(isBossAtk));
+			}
+
+			if(other.GetComponent<Rigidbody>() != null){
+				Destroy(other.gameObject);
+			}
+		}
+	}
+
+	IEnumerator OnDamage(bool isBossAtk){
+		isDamage = true;
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = Color.yellow;
+		}
+
+		if(isBossAtk){
+			rigid.AddForce(transform.forward* -25,ForceMode.Impulse);
+		}
+
+		yield return new WaitForSeconds(1f);
+		isDamage = false;
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = Color.white;
+		}
+		if(isBossAtk)
+			rigid.velocity =Vector3.zero;
+	}
+```
+
+Boss.cs
+
+```cs
+public class Boss : Enemy
+{
+	public GameObject missile;
+	public Transform missilePortA;
+	public Transform missilePortB;
+	public bool isLook;
+
+	Vector3 lookVec;
+	Vector3 tauntVec;
+
+	void Awake()
+	{
+		rigid = GetComponent<Rigidbody>();
+		boxCollider = GetComponent<BoxCollider>();
+		meshs = GetComponentsInChildren<MeshRenderer>();
+		nav = GetComponent<NavMeshAgent>();
+		anim = GetComponentInChildren<Animator>();
+
+		nav.isStopped = true;
+		StartCoroutine(Think());
+	}
+
+	void Start()
+	{
+		isLook = true;
+	}
+
+	void Update()
+	{
+		if(isDead){
+			StopAllCoroutines();
+			return;
+		}
+
+		if(isLook){ // 바라보고 있는 중이면 //플레이어가 가는방향을 예측
+			float h = Input.GetAxisRaw("Horizontal");
+			float v = Input.GetAxisRaw("Vertical");
+
+			lookVec = new Vector3(h,0,v) * 5f;
+			transform.LookAt(target.position + lookVec);
+		}else{
+			nav.SetDestination(tauntVec);
+		}
+	}
+
+	IEnumerator Think(){
+		yield return new WaitForSeconds(0.1f); // 난이도 조절 시 이 값을 조정
+
+		int ranAction = Random.Range(0,5);
+
+		switch (ranAction) {
+			case 0:
+			case 1:
+				// 미사일 발사 패턴
+				StartCoroutine(MissileShot());
+				break;
+			case 2:
+			case 3:
+				// 돌 굴러가는 패턴
+				StartCoroutine(RockShot());
+				break;
+			case 4:
+				// 점프 공격 패턴
+				StartCoroutine(Taunt());
+				break;
+		}
+
+		yield return null;
+	}
+
+	IEnumerator MissileShot(){
+		anim.SetTrigger("doShot");
+
+		yield return new WaitForSeconds(0.2f);       
+		GameObject instantMissileA = Instantiate(missile,missilePortA.position,missilePortA.rotation);
+		BossMissile bossMissileA = instantMissileA.GetComponent<BossMissile>();
+		bossMissileA.target = target;
+
+		yield return new WaitForSeconds(0.3f);
+
+		GameObject instantMissileB = Instantiate(missile,missilePortA.position,missilePortA.rotation);
+		BossMissile bossMissileB = instantMissileB.GetComponent<BossMissile>();
+		bossMissileB.target = target;
+
+		yield return new WaitForSeconds(2f);
+
+		StartCoroutine(Think());
+	}
+
+	IEnumerator RockShot(){
+		isLook = false;
+		anim.SetTrigger("doBigShot");
+		Instantiate(bullet,transform.position,transform.rotation);
+
+		yield return new WaitForSeconds(3f);
+
+		isLook = true;
+		StartCoroutine(Think());
+	}
+
+	IEnumerator Taunt(){
+		tauntVec = target.position + lookVec;
+
+		isLook = false;
+		nav.isStopped = false;
+		boxCollider.enabled = false;
+		anim.SetTrigger("doTaunt");
+
+		yield return new WaitForSeconds(1.5f);
+
+		meleeArea.enabled = true;
+
+		yield return new WaitForSeconds(0.5f);
+
+		meleeArea.enabled = false;
+
+		yield return new WaitForSeconds(1f);
+
+		isLook = true;
+		nav.isStopped = true;
+		boxCollider.enabled = true;
+
+		StartCoroutine(Think());
+	}
+}
+```
+
+BossMissile.cs
+
+```cs
+public class BossMissile : Bullet
+{
+    public Transform target;
+    NavMeshAgent nav;
+
+    void Awake()
+    {
+        nav =GetComponent<NavMeshAgent>();
+    }
+
+    void Update()
+    {
+        nav.SetDestination(target.position);
+    }
+}
+```
+
+BossRock.cs
+
+```cs
+public class BossRock : Bullet
+{
+	Rigidbody rigid;
+	float angularPower = 2;
+	float scaleValue = 0.1f;
+	bool isShoot; // 기를 모으고 쏘는 타이밍을 관리할 bool 변수 추가
+
+	void Awake()
+	{
+		rigid = GetComponent<Rigidbody>();
+		StartCoroutine(GainPowerTimer());
+		StartCoroutine(GainPower());
+	}
+
+	IEnumerator GainPowerTimer(){
+		yield return new WaitForSeconds(2.2f);
+		isShoot = true;
+	}
+
+	IEnumerator GainPower(){
+		while(!isShoot){
+			angularPower += 0.02f;
+			scaleValue += 0.005f;
+			transform.localScale = Vector3.one * scaleValue;
+			rigid.AddTorque(transform.right * angularPower,ForceMode.Acceleration); // 지속적으로
+			yield return new WaitForSeconds(1f/120f);
+		}
+	}
+}
+```
+
 ###

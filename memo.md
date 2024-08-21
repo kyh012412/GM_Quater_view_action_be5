@@ -2182,4 +2182,145 @@ public class BossRock : Bullet
 }
 ```
 
+### 3D 쿼터뷰 액션게임 - UI 배치하기 [B51]
+
+#### 캔버스 세팅
+
+1. Canvas 추가
+2. EventSystem : UI에서 키입력을 결정해주는 컴포넌트
+3. 인게임 - 월드 좌표계 , UI = 스크립 좌표계
+4. 월드 좌표 - Transform, 스크린 좌표 - RectTransform
+5. GameTab에서 16:9 설정을 해준다.
+6. Canvas 컴포넌트 내에 Pixel Perfect를 체크해준다.
+7. 어느 해상도에서도 동일한 크기를 만들기 위해서
+   1. Canvas Scaler 의
+   2. UI Scale Mode -> Scale With Screen Size
+   3. 1920 1080
+
+#### 타이틀 메뉴 UI
+
+1. Canvas > Panel 추가 (Menu Panel)
+   1. color 383838 알파 100
+2. Menu Panel > Image(Title Image)
+   1. 소스 이미지 title
+   2. set native size
+   3. pos y 200
+3. Menu Panel > Image (Max Score Image)
+   1. 소스 이미지 icon score mini
+   2. pos x -170 pos y -150
+4. Menu Panel > Text (Max Score Text)
+   1. 가로 세로 0 0
+   2. pos x 30 pos y -148
+   3. 라벨 99999999
+   4. 컬러 하얀색
+   5. 폰트크기 130
+   6. scale 0.5
+   7. (쿠키런 볼드체)
+5. Menu Panel > Button (Start Button)
+   1. 소스 이미지 Panel A
+   2. Image type simple
+   3. set native size
+   4. Image type sliced
+   5. 가로 세로 400 150
+   6. pos y -350
+6. Menu Panel > Button > Text
+   1. bottom 15
+   2. 폰트 종류변경
+   3. 라벨 Game Start
+   4. 스케일 0.5
+   5. 폰트 크기 130
+   6. 중앙정렬 중앙정렬 overflow overflow
+7. Menu Panel 비활성화
+8. _폰트는 프로젝트에 많이 담으면 안좋음 (무거움)_
+
+#### 인게임 주요 UI
+
+1. Canvas > Panel 추가 (Game Panel)
+   1. color 알파값 0
+2. Game Panel > 빈 객체 추가(Score Group)
+   1. 가로 세로 500 500
+   1. 가로 세로 ００
+   1. 앵커 좌상단
+   1. pos x 20 y -20
+3. Score Group > Image 추가 (Score Image)
+   1. 소스 이미지 icon score mini
+   2. 앵커 좌상단
+4. Score Group > Text 추가 (Score Text)
+   1. 폰트변경
+   2. 스케일 0.5
+   3. 폰트크기 100
+   4. 라벨 99999999
+   5. 좌측정렬 상단정렬
+   6. pos x 33
+   7. 색상 하얀색
+   8. 앵커 좌상단
+   9. pos x 60
+5. 앵커 : UI 중심과 위치의 방향 기준
+6. shift 키 : UI 중심, Alt 키 : UI 위치
+7. Score Group(복사) (Status Group)
+   1. 앵커 좌하단
+   2. pos x 20 y 20
+   3. 내부 자식객체들도 앵커 좌하단
+   4. Text 위치 보정
+   5. 자식을 2쌍더 복사(총3쌍이 되게)
+8. 위 부터 icon heart mini, icon ammo mini, icon coin mini
+   1. health text
+      1. 라벨 100 / 100
+   2. ammo text
+      1. 라벨 - / 99
+   3. coin text
+      1. 라벨 1000
+9. Score Group 복사 (Stage Group)
+   1. 우상단 앵커
+   2. Text 조정
+      1. 라벨 STAGE 0
+   3. 아이콘이 text의 좌측에 오게 끔 조정
+   4. icon stage mini
+   5. 한 쌍 복사
+      1. icon time mini
+      2. 라벨 00:00:00
+10. Score Group 복사 (Enemy Group)
+    1. 모두 복사하여 우하단 앵커 2. 라벨 x 0
+
+#### 장비 UI
+
+1. Game Panel > 빈객체 추가 (Equip Group)
+   1. 가로세로 0 0
+   2. 앵커 중앙하단
+2. Equip Group > Image 추가 (Equip 1)
+   1. 소스 이미지 Panel B
+   2. set native size
+   3. 앵커 중앙 하단
+3. Equip Group > Image > Image (Weapon 1 Image)
+   1. 소스 이미지 Icon Weapon Hammer
+   2. set native size
+4. Weapon 1 Image 복사 (Num Image)
+   1. 소스 이미지 icon num1
+   2. set native size
+   3. 앵커 좌상단
+   4. pos x 15 y 25
+5. Equip Group > Image를 4개 추가(복사사용)
+   1. Control L
+      1. Weapon L Image
+      2. Num Image
+6. Equip Group
+   1. scale 0.7 (optional)
+   2. pos y 20
+
+#### 보스 체력 UI
+
+1. Game Panel > 빈객체 추가 (Boss Group)
+   1. 가로 세로 0 0
+2. Boss Group > Image 추가
+   1. 소스 guage back
+   2. Image type을 simple로 바꿔준후 set native size 후 다시 sliced로 변경
+   3. 가로 600 높이 50
+3. Boss Group > Image > Image 추가(Boss Health Image)
+   1. 소스 guage front
+   2. Image type을 simple로 바꿔준후 set native size 후 다시 sliced로 변경
+   3. 가로 600 높이 50
+4. Boss Group > Image > Image 추가
+   1. 앵커 좌측
+   2. 소스 icon Enemy D
+
 ###

@@ -2323,4 +2323,200 @@ public class BossRock : Bullet
    1. 앵커 좌측
    2. 소스 icon Enemy D
 
+### 3D 쿼터뷰 액션게임 - 간단한 상점 만들기 [B52]
+
+#### 상점 꾸미기
+
+1. 하이라키에 빈객체 추가 (Item Shop)
+2. 진열대 Item Shop > cube
+   1. position 0 1.5 0
+   2. scale 5 2 3
+   3. box collider 삭제
+3. Assets/Materials 내에 material 생성 (ShopTable)
+   1. albedo에 Asset/Textures에있는 \_Pattern을 넣어준다.
+   2. ItemShop > Cube에 적용
+4. 진열 상품을 Goods Group에 만들어서 넣어주기
+   1. 각각을 scale을 작게조정하면 편하다
+5. Goods Group도 Item Shop이하로 넣어주기
+6. 쿼드에셋 > Prefab을 드랍 후 크기조절
+7. 쿼드에셋 > Prefab npc luna도 드랍(Luna)
+   1. mesh object에 animator 추가(Luna)
+8. Item Shop > 빈객체 추가 (Zone)
+   1. Particle System
+      1. shape cone > donut
+      2. rotation x 90
+      3. start speed 0
+      4. start lifetime 1
+      5. start size 0.5
+      6. shape
+         1. radius 2.5
+         2. donut
+         3. radius 0
+         4. mode - loop
+      7. emission
+         1. rate over time 60
+      8. color over lifetime
+         1. 좌하단 ff5d7d~
+         2. 52.4 ffe781
+   2. sphere collider 추가
+      1. is trigger 체크
+   3. Shop tag 추가
+   4. Shop.cs 추가
+9. Item Shop > 빈객체 (Spawn Pos A,B,C)
+10. Item Shop 복사 (Weapon Shop)
+    1. Luna 대신 Ludo로 교체
+    2. Ludo에도 animator를 넣어준다.
+11. 쿼드 에셋 > prefab에서 table을 위를 다른 아이템으로 채워준다.
+12. Particle 색상을 blue계열로 변경
+
+#### UI 구축하기
+
+1. Canvas > Game Panel > Item Shop Group
+   1. pos y -1000
+   2. 가로 1000 높이 500
+   3. 이미지 컴포넌트 추가
+      1. 소스 이미지 Panel A
+      2. Color ea7493
+2. Item Shop Group > Button (Item button A)
+   1. 가로 세로 240 380
+3. Item button A > Text (Name Text)
+   1. 스케일 0.5
+   2. 폰트크기 80
+   3. 중앙정렬 overflow
+   4. top bottom 30 -30
+   5. 라벨 체 력
+4. Name Text 복사 (Price Text)
+   1. left 50
+   2. top bottom 115 -115
+   3. 라벨 999,999
+   4. 컬러 오렌지
+5. Item button A > Image (Item Image)
+   1. 소스 이미지 icon heart
+   2. pos y 90
+   3. 가로 세로 180 180
+6. Item button A > Image (Coin Image)
+   1. 소스 이미지 icon coin mini
+7. Item button A
+   1. 앵커 상단 중앙
+   2. pos y -30
+8. Item Button B,C도 만들어 준다.
+9. Item Shop Group > Button 추가 (Exit Button)
+   1. 이하 텍스트 삭제
+   2. 위치는 좌상단 예정
+   3. 소스 이미지 icon close
+   4. set native size
+   5. Transition에서 color를 지정해준다.
+10. Item Shop Group > Image 추가 (Portarit Image)
+    1. icon luna
+    2. set native size
+    3. 구석으로 이동후 30 25
+11. Item Shop Group > Text 추가(Talk Text)
+    1. 앵커 중앙하단
+    2. 폰트 70
+    3. 컬러 white
+12. Item Shop Group 복사 (Weapon Shop Group)
+    1. 캐릭터 ludo로 변경
+    2. color blue계열로 변경
+
+#### 상점 출입
+
+1. 각 Shop 객체 내에 Zone 객체에 shop.cs를 넣어준다.
+2. Player.cs ontriggerstay와 ontriggerexit 에서 처리
+3. ui창에서 닫기버튼 누를때도 처리할수 잇게
+4. on Click
+   1. 객체 zone
+   2. 메서드 Shop.Exit
+5. 테스트 / 미리 UI 객체 활성화 해두기
+
+#### 아이템 구입
+
+1. Shop.cs
+2. 각각의 배열을 inspector 내에서 초기화
+3. Assets/Prefabs에서 가져다가 객체를 넣어줘야 한다.
+4. shop.cs에서 buy 메서드구현
+5. Shop roup내에 버튼이 click 됐을때 작동으로 연결
+6. 테스트 / 정상
+
+#### 액션 제한
+
+1. player.cs 내에 `bool isShop` 변수를 추가해서 제어해준다.
+   Shop.cs
+
+```cs
+public class Shop : MonoBehaviour
+{
+	public RectTransform uiGroup;
+	public Animator anim;
+	public GameObject[] itemObj;
+	public int[] itemPrice;
+	public Transform[] itemPos;
+	public string[] talkData;
+	public Text talkText;
+
+	Player enterPlayer;
+
+	public void Enter(Player player){
+		enterPlayer = player;
+		uiGroup.anchoredPosition = Vector3.zero;
+	}
+
+	public void Exit(){
+		anim.SetTrigger("doHello");
+		uiGroup.anchoredPosition = Vector3.down * 1000;
+	}
+
+	public void Buy(int index){
+		int price = itemPrice[index];
+		if(price > enterPlayer.coin){
+			StopCoroutine(Talk());
+			StartCoroutine(Talk());
+			return;
+		}
+
+		enterPlayer.coin -= price;
+
+		Vector3 ranVec = Vector3.right * Random.Range(-3,3) + Vector3.forward * Random.Range(-3,3);
+		Instantiate(itemObj[index],itemPos[index].position + ranVec, itemPos[index].rotation);
+	}
+
+	IEnumerator Talk(){
+		talkText.text =talkData[1];
+		yield return new WaitForSeconds(2f);
+		talkText.text =talkData[0];
+	}
+}
+```
+
+Player.cs
+
+```cs
+	bool isShop;
+	void Interaction(){
+		// 상호작용의 조건
+		if(iDown && nearObject !=null && !isJump && !isDodge){
+			// 상호작용하는 물체의 태그에 다른 분기처리
+			if(nearObject.CompareTag("Weapon")){
+				//...
+			}else if(nearObject.CompareTag("Shop")){
+				Shop shop = nearObject.GetComponent<Shop>();
+				shop.Enter(this);
+				isShop=true;
+			}
+		}
+	}
+
+	void OnTriggerExit(Collider other)
+	{
+		if(other.CompareTag("Weapon"))
+			nearObject = null;
+		else if( other.CompareTag("Shop")){
+			Shop shop = nearObject.GetComponent<Shop>();
+			shop.Exit();
+			nearObject = null;
+			isShop=false;
+		}
+	}
+	// 이 이외에 isShop 변수를 사용하여 다른 method들을 제어해준다.
+```
+
 ###

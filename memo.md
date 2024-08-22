@@ -2519,4 +2519,167 @@ Player.cs
 	// 이 이외에 isShop 변수를 사용하여 다른 method들을 제어해준다.
 ```
 
+### 3D 쿼터뷰 액션게임 - UI 로직 연결하기 [B53]
+
+#### 타이틀 카메라
+
+1. 기존 Main Camera 객체의 이름을 Game Camera로 변경 (Game Camera)
+2. Game Camera를 복사 (Menu Camera)
+3. Game Camera는 비활성화 해준다.
+4. Menu Camera 내의
+   1. Follow.cs 스크립트는 지워준다.
+   2. position 0 33 -22
+   3. rotation 60 0 0
+5. Assets/Animations 내에 Animation을 만들어준다.(Yoyo Rotation)
+   1. Menu Camera내에 넣어준다.
+   2. 자동으로 Menu Camera.controller가 생성되며 연결됨
+   3. 내부로 진입
+   4. Speed 0.1
+   5. add property하여
+      1. 루프타임 체크
+      2. Mnu Camera : Rotation을 추가해준다.
+      3. 0프레임부터 60프레임 단위로
+      4. rotation y -20 20 -20
+      5. 테스트해보면 빨라보여도 speed 0.1로 주었기에 더 느린화면을 추후에 보게됨
+6. Title Image scale 1.4
+
+#### 최고점수 기록
+
+1. 위 기능은 Player.cs에서 구현
+
+```cs
+// PlayerPrefs.SetInt("MaxScore",112500);
+// PlayerPrefs.GetInt("MaxScore")
+```
+
+#### 변수 세팅
+
+1. 하이라키에 GameManager객체를 만들어준다. (.cs도)
+2. inspector에서 연결
+
+#### 게임 시작
+
+1. Player 비활성화
+2. Menu Panel 활성화
+3. Game Panel 비활성화
+4. GameManager.GameStart를 onclick에 연결
+5. 테스트
+
+#### 인게임 UI 로직
+
+1. LateUpdate() : Update()가 끝난 후 호출되는 생명주기
+
+#### 테스트
+
+GameManager.cs
+
+```cs
+public class GameManager : MonoBehaviour
+{
+	public static GameManager instance;
+
+	public GameObject menuCam;
+	public GameObject gameCam;
+	public Player player;
+	public Boss boss;
+	public int stage;
+	public float playTime;
+	public bool isBattle;
+	public int enemyCntA;
+	public int enemyCntB;
+	public int enemyCntC;
+
+	public GameObject menuPanel;
+	public GameObject gamePanel;
+	public Text maxScoreTxt;
+	public Text scoreTxt;
+	public Text stageTxt;
+	public Text playTimeTxt;
+	public Text playerHealthTxt;
+	public Text playerAmmoTxt;
+	public Text playerCoinTxt;
+	public Image weapon1Img;
+	public Image weapon2Img;
+	public Image weapon3Img;
+	public Image weaponRImg;
+	public Text enemyATxt;
+	public Text enemyBTxt;
+	public Text enemyCTxt;
+
+	public RectTransform bossHealthGroup;
+	public RectTransform bossHealthBar;
+
+	void Awake()
+	{
+		if(instance==null){
+			instance = this;
+			maxScoreTxt.text = string.Format("{0:n0}",PlayerPrefs.GetInt("MaxScore",0));
+		}
+	}
+
+	void Update()
+	{
+		if(isBattle)
+			playTime += Time.deltaTime;
+	}
+
+	void LateUpdate()
+	{
+		// 상단 UI
+		scoreTxt.text = string.Format("{0:n0}",player.score);
+		stageTxt.text = "STAGE "+ stage;
+
+		// 플레이어 UI
+		int hour = (int)(playTime / 3600);
+		int min = (int)((playTime - hour * 3600) / 60);
+		int second = (int)(playTime % 60);
+
+		playTimeTxt.text = string.Format("{0:00}:{1:00}:{2:00}",hour,min,second);
+		playerHealthTxt.text = player.health + " / " + player.maxHealth;
+		playerCoinTxt.text = string.Format("{0:n0}",player.coin);
+
+
+		if(player.equipWeapon == null){
+			playerAmmoTxt.text = "- / " + player.ammo;
+		}else if(player.equipWeapon.type == Weapon.Type.Melee){
+			playerAmmoTxt.text = "- / " + player.ammo;
+		}else{
+			playerAmmoTxt.text = player.equipWeapon.curAmmo +  " / " + player.ammo;
+		}
+
+		// 무기 UI
+		weapon1Img.color = new Color(1,1,1,player.hasWeapons[0] ? 1 : 0);
+		weapon2Img.color = new Color(1,1,1,player.hasWeapons[1] ? 1 : 0);
+		weapon3Img.color = new Color(1,1,1,player.hasWeapons[2] ? 1 : 0);
+		weaponRImg.color = new Color(1,1,1,player.hasGrenades > 0 ? 1 : 0);
+
+
+		// 몬스터 숫자 UI
+		enemyATxt.text = enemyCntA.ToString();
+		enemyBTxt.text = enemyCntB.ToString();
+		enemyCTxt.text = enemyCntC.ToString();
+
+		// 보스 체력 UI
+		bossHealthBar.localScale = new Vector3(1f * boss.curHealth / boss.maxHealth,1,1);
+	}
+
+	public void GameStart(){
+		menuCam.SetActive(false);
+		gameCam.SetActive(true);
+
+		menuPanel.SetActive(false);
+		gamePanel.SetActive(true);
+
+		player.gameObject.SetActive(true);
+	}
+}
+```
+
+Player.cs
+
+```cs
+    public int score;
+    public Weapon equipWeapon;
+```
+
 ###

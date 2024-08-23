@@ -29,7 +29,7 @@ public class Shop : MonoBehaviour
         int price = itemPrice[index];
         if(price > enterPlayer.coin){
             StopCoroutine(Talk());
-            StartCoroutine(Talk());
+            StartCoroutine(Talk()); 
             return;
         }
 

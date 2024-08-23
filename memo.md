@@ -2682,4 +2682,304 @@ Player.cs
     public Weapon equipWeapon;
 ```
 
-###
+### 3D 쿼터뷰 액션게임 - 게임 완성하기 [BE5]
+
+#### 스테이지 관리
+
+1. GameManger.cs내에
+   1. StageStart와 StageEnd 메서드를 만들어준다.
+2. 하이라키내에 Zone을 추가해준다. (Start Zone)
+   1. shop script 컴포넌트를 제거해주고
+   2. sphere collider radius 값을 4로 늘려준다.
+   3. tag - untagged
+   4. 이펙트도 조정
+3. Start Zone > 3d text를 넣어준다.
+   1. rotation x 90
+   2. anchor middle center
+   3. aligment center
+   4. 라벨 NEXT STAGE
+   5. 행간조정은 Line Spacing에서
+   6. 알파값 200
+   7. StartZone.cs
+4. StartZone
+5. Player 태그 확인
+6. 테스트 / 정상
+
+#### 몬스터 프리펩
+
+1. 몇가지 수정후 prefab화 예정
+2. Enemy.cs에
+   1. int score 추가
+   2. Enemy Die시 점수증가와 코인생성로직추가
+   3. Coin까지 넣고 각각을완성시킨후
+3. pos 와 rot를 0 0 0으로 초기화 후 prefab화
+
+#### 몬스터 관리
+
+1. Start Zone 복사 (Enemy Respawn Zone)
+   1. particle 만 남기고 나머지 컴포넌트 삭제
+   2. particle의 color를 조금 수정해준다.
+   3. 동서남북에 배치해준다.
+2. GameManager.cs
+   1. 스폰리스트를만들고 4초마다 소환
+   2. GameManager에서 inspector 설정
+
+#### 게임 오버
+
+1. GameManager.GameOver 메서드생성
+2. Player.OnDie 메서드 생성
+3. Menu Panel 복사(GameOver Panel)
+   1. Title Image는 삭제
+   2. GameOver Text 추가
+   3. Bext Text 추가
+4. 테스트
+5. type : button Navigation None
+
+#### 사운드
+
+1. Player 이하에 Audio 객체 추가
+   1. audio source
+      1. play on awake를 꺼주고
+
+#### 빌드
+
+1. 빌드 전에 원위치
+2. Scene 추가
+3. Player Settings 1. company name, product name 설정 2. icon 설정 3. Resolution and Presentation 1. Full ScreenMode를 Windowed 2. 1600,900 3. 하단측에 Supported Aspect Ratios가 있는데 16:9만 남기고 나머지는 체크해제
+   StartZone.cs
+
+```cs
+public class StartZone : MonoBehaviour
+{
+	void OnTriggerEnter(Collider other)
+	{
+		if(other.gameObject.CompareTag("Player")){
+			GameManager.instance.StageStart();
+		}
+	}
+}
+```
+
+Enemy.cs
+
+```cs
+	public int score;
+	public GameObject[] coins;
+
+	IEnumerator OnDamage(Vector3 reactVec,bool isGrenade){
+		reactVec = reactVec.normalized;
+		reactVec += Vector3.up;
+
+		ChangeColor(Color.red);
+		yield return new WaitForSeconds(0.1f);
+		if(curHealth > 0){
+			rigid.AddForce(reactVec * Random.Range(0,2),ForceMode.Impulse);
+			ChangeColor(Color.white);
+		}else{
+			ChangeColor(Color.gray);
+			gameObject.layer = 14; //넘버 그대로
+			isDead = true;
+			anim.SetTrigger("doDie");
+			isChase=false;
+			nav.enabled=false; // 이 옵션을 써야 y축 액션이 동작함
+
+			Player player = target.GetComponent<Player>();
+			player.score += score;
+			int ranCoin = Random.Range(0,3);
+			Instantiate(coins[ranCoin],transform.position,Quaternion.identity);
+
+			switch(enemyType){
+				case Type.A:
+					GameManager.instance.enemyCntA--;
+					break;
+				case Type.B:
+					GameManager.instance.enemyCntB--;
+					break;
+				case Type.C:
+					GameManager.instance.enemyCntC--;
+					break;
+				case Type.D:
+					GameManager.instance.enemyCntD--;
+					break;
+			}
+
+			if(isGrenade){
+				reactVec += Vector3.up * 3;
+				rigid.freezeRotation = false;
+
+				rigid.AddForce(reactVec * 3,ForceMode.Impulse);
+				rigid.AddTorque(reactVec * 15,ForceMode.Impulse);
+			}else{
+				rigid.AddForce(reactVec * 5,ForceMode.Impulse);
+			}
+
+			Destroy(gameObject,4);
+		}
+	}
+```
+
+GameManager.cs
+
+```cs
+	public GameObject itemShop;
+	public GameObject weaponShop;
+	public GameObject startZone;
+	public int enemyCntD;
+
+
+	public Transform[] enemyZones;
+	public GameObject[] enemies;
+	public List<int> enemyList;
+
+	public RectTransform bossHealthBar;
+	public Text curScoreText;
+	public Text bestText;
+
+	void Awake()
+	{
+		enemyList = new List<int>();
+		maxScoreTxt.text = string.Format("{0:n0}",PlayerPrefs.GetInt("MaxScore",0));
+	}
+
+	void LateUpdate()
+	{
+		//...
+
+		// 보스 체력 UI
+		if(boss != null){
+			bossHealthGroup.anchoredPosition = Vector3.down * 30;
+			bossHealthBar.localScale = new Vector3((float) boss.curHealth / boss.maxHealth,1,1);
+		}else{
+			bossHealthGroup.anchoredPosition = Vector3.up * 200;
+		}
+	}
+
+	public void StageStart(){
+		itemShop.SetActive(false);
+		weaponShop.SetActive(false);
+		startZone.SetActive(false);
+
+		foreach(Transform zone in enemyZones){
+			zone.gameObject.SetActive(true);
+		}
+
+		isBattle = true;
+		StartCoroutine(InBattle());
+	}
+
+	public void GameOver(){
+		gamePanel.SetActive(false);
+		overPanel.SetActive(true);
+		curScoreText.text = scoreTxt.text;
+
+		int maxScore = PlayerPrefs.GetInt("MaxScore",0);
+		if(player.score > maxScore){
+			bestText.gameObject.SetActive(true);
+			PlayerPrefs.SetInt("MaxScore",player.score);
+		}
+	}
+
+	public void Restart(){
+		SceneManager.LoadScene(0);
+	}
+
+	public void StageEnd(){
+		player.transform.position  = Vector3.up * 0.8f;
+
+		itemShop.SetActive(true);
+		weaponShop.SetActive(true);
+		startZone.SetActive(true);
+
+		foreach(Transform zone in enemyZones){
+			zone.gameObject.SetActive(false);
+		}
+
+		isBattle = false;
+		stage ++;
+	}
+
+	IEnumerator InBattle(){
+		if(stage % 5 == 0){
+			enemyCntD++;
+			GameObject instantEnemy = Instantiate(enemies[3],enemyZones[0].position,enemyZones[0].rotation);
+			Enemy enemyLogic = instantEnemy.GetComponent<Enemy>();
+			enemyLogic.target = player.transform;
+
+			boss = instantEnemy.GetComponent<Boss>();
+		}else{
+			for(int index=0; index < stage ; index++){
+				int ran = Random.Range(0,3);
+				enemyList.Add(ran);
+
+				switch(ran){
+					case 0:
+						enemyCntA++;
+						break;
+					case 1:
+						enemyCntB++;
+						break;
+					case 2:
+						enemyCntC++;
+						break;
+				}
+			}
+
+			while(enemyList.Count >0){
+				int ranZone = Random.Range(0,4);
+				GameObject instantEnemy = Instantiate(enemies[enemyList[0]],enemyZones[ranZone].position,enemyZones[ranZone].rotation);
+				Enemy enemyLogic = instantEnemy.GetComponent<Enemy>();
+				enemyLogic.target = player.transform;
+				enemyList.RemoveAt(0);
+				yield return new WaitForSeconds(4f);
+			}
+		}
+
+		while(enemyCntA + enemyCntB + enemyCntC + enemyCntD > 0){
+			yield return null;
+		}
+
+		yield return new WaitForSeconds(4f);
+
+		boss = null;
+		StageEnd();
+	}
+```
+
+Player.cs
+
+```cs
+	bool isDead;
+	IEnumerator OnDamage(bool isBossAtk){
+		isDamage = true;
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = Color.yellow;
+		}
+
+		if(isBossAtk){
+			rigid.AddForce(transform.forward* -25,ForceMode.Impulse);
+		}
+
+		if(health<=0 &&!isDead){
+			OnDie();
+		}
+
+		yield return new WaitForSeconds(1f);
+
+		isDamage = false;
+
+		foreach(MeshRenderer mesh in meshs){
+			mesh.material.color = Color.white;
+		}
+
+		if(isBossAtk)
+			rigid.velocity =Vector3.zero;
+	}
+
+	void OnDie(){
+		anim.SetTrigger("doDie");
+		isDead = true;
+		GameManager.instance.GameOver();
+	}
+```
+
+### 개인1

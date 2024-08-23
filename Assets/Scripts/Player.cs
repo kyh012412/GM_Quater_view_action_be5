@@ -12,6 +12,8 @@ public class Player : MonoBehaviour
     public GameObject grenadeObj;
     public Camera followCamera;
 
+    public AudioSource jumpSound;
+
     public int ammo;
     public int coin;
     public int health;
@@ -44,6 +46,7 @@ public class Player : MonoBehaviour
     bool isBorder;
     bool isDamage;
     bool isShop;
+    bool isDead;
     
     Vector3 moveVec;
     Vector3 dodgeVec;
@@ -113,7 +116,7 @@ public class Player : MonoBehaviour
 
         if(isDodge) moveVec = dodgeVec;
 
-        if(isSwap || isReload || !isFireReady){ 
+        if(isSwap || isReload || !isFireReady || isDead){ 
             // Debug.Log("zerofy" + isSwap + isFireReady);            
             moveVec = Vector3.zero; 
         }
@@ -130,7 +133,7 @@ public class Player : MonoBehaviour
         transform.LookAt(transform.position + moveVec);
 
         // #2 마우스에 의한 회전
-        if(fDown1){
+        if(fDown1 && !isDead){
             Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
             RaycastHit rayHit;
             if(Physics.Raycast(ray, out rayHit, 100)){
@@ -142,18 +145,20 @@ public class Player : MonoBehaviour
     }
 
     void Jump(){
-        if(jDown && !isJump && moveVec == Vector3.zero && !isDodge && !isSwap && !isShop){
+        if(jDown && !isJump && moveVec == Vector3.zero && !isDodge && !isSwap && !isShop && !isDead){
             rigid.AddForce(Vector3.up * 9.81f,ForceMode.Impulse);
             isJump = true;
             anim.SetBool("isJump", isJump);
             anim.SetTrigger("doJump");
+
+            jumpSound.Play();
         }
     }
 
     void Grenade(){        
         if(hasGrenades <= 0) return;
         
-        if(fDown2 && !isReload && !isSwap && !isShop){
+        if(fDown2 && !isReload && !isSwap && !isShop && !isDead){
             Ray ray = followCamera.ScreenPointToRay(Input.mousePosition);
             RaycastHit rayHit;
             if(Physics.Raycast(ray, out rayHit, 100)){
@@ -175,7 +180,7 @@ public class Player : MonoBehaviour
     }
 
     void Dodge(){
-        if(jDown && !isJump && moveVec != Vector3.zero && !isDodge && !isSwap && !isShop){
+        if(jDown && !isJump && moveVec != Vector3.zero && !isDodge && !isSwap && !isShop && !isDead){
             dodgeVec = moveVec;
             speed *=2;
             anim.SetTrigger("doDodge");
@@ -212,7 +217,7 @@ public class Player : MonoBehaviour
 
         if(ammo == 0) return;
 
-        if(rDown && !isJump && !isDodge && !isSwap && isFireReady && !isReload  && !isShop){
+        if(rDown && !isJump && !isDodge && !isSwap && isFireReady && !isReload  && !isShop && !isDead){
             anim.SetTrigger("doReload");
             isReload=true;
 
@@ -239,7 +244,7 @@ public class Player : MonoBehaviour
         if (sDown3) weaponIndex = 2;
 
 
-        if((sDown1 || sDown2 || sDown3) && !isJump && !isDodge && !isSwap){
+        if((sDown1 || sDown2 || sDown3) && !isJump && !isDodge && !isSwap && !isDead){
             if(equipWeapon != null)
                 equipWeapon.gameObject.SetActive(false);
             equipWeapon = weapons[weaponIndex].GetComponent<Weapon>();
@@ -260,7 +265,7 @@ public class Player : MonoBehaviour
 
     void Interaction(){
         // 상호작용의 조건
-        if(iDown && nearObject !=null && !isJump && !isDodge){
+        if(iDown && nearObject !=null && !isJump && !isDodge && !isDead){
 
             // 상호작용하는 물체의 태그에 다른 분기처리
             if(nearObject.CompareTag("Weapon")){
@@ -337,6 +342,10 @@ public class Player : MonoBehaviour
             rigid.AddForce(transform.forward* -25,ForceMode.Impulse);
         }
 
+        if(health<=0 &&!isDead){
+            OnDie();
+        }
+
         yield return new WaitForSeconds(1f);
         isDamage = false;
         foreach(MeshRenderer mesh in meshs){
@@ -344,6 +353,12 @@ public class Player : MonoBehaviour
         }
         if(isBossAtk)
             rigid.velocity =Vector3.zero;
+    }
+
+    void OnDie(){
+        anim.SetTrigger("doDie");
+        isDead = true;
+        GameManager.instance.GameOver();
     }
 
     void OnTriggerStay(Collider other)
@@ -364,6 +379,5 @@ public class Player : MonoBehaviour
             nearObject = null;
             isShop=false;
         }
-        
     }
 }

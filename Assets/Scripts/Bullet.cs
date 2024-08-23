@@ -19,7 +19,7 @@ public class Bullet : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         switch(other.gameObject.tag){ // 탄dkf 제거 로직
-            // case "Floor":
+            case "Floor":
             case "Wall":
                 if(!isMelee)
                     Destroy(gameObject);
